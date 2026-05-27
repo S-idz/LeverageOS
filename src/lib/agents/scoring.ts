@@ -3,7 +3,7 @@
 // Structured output: 5 dimension scores + opportunity signals
 // ============================================================
 
-import { openai } from "../openai";
+import { getOpenAI } from "../openai";
 import { ProfileData, VisibilityGap, PerceptionScores } from "../types";
 import { buildProfileSummary } from "../github";
 
@@ -27,7 +27,7 @@ export async function runScoringAgent(
     .map((g) => `- [${g.impact.toUpperCase()}] ${g.title}`)
     .join("\n");
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     messages: [
       {

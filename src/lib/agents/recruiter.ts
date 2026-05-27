@@ -3,7 +3,7 @@
 // Simulates how a senior recruiter perceives the profile
 // ============================================================
 
-import { openai } from "../openai";
+import { getOpenAI } from "../openai";
 import { ProfileData } from "../types";
 import { buildProfileSummary } from "../github";
 
@@ -34,7 +34,7 @@ export async function runRecruiterSimulation(
 ): Promise<string> {
   const profileSummary = buildProfileSummary(profileData);
 
-  const stream = await openai.chat.completions.create({
+  const stream = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },

@@ -3,7 +3,7 @@
 // Hybrid: rules-based detection + LLM explanation
 // ============================================================
 
-import { openai } from "../openai";
+import { getOpenAI } from "../openai";
 import { ProfileData, VisibilityGap } from "../types";
 import { buildProfileSummary } from "../github";
 import { v4 as uuidv4 } from "uuid";
@@ -136,7 +136,7 @@ async function generateStrategicInsight(
     const summary = buildProfileSummary(profileData);
     const gapTitles = rulesGaps.map((g) => g.title).join(", ");
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: "gpt-4o",
       messages: [
         {

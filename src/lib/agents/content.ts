@@ -3,7 +3,7 @@
 // 3 parallel content pieces: LinkedIn, X Thread, GitHub README
 // ============================================================
 
-import { openai } from "../openai";
+import { getOpenAI } from "../openai";
 import { ProfileData, VisibilityGap, GeneratedContent } from "../types";
 import { buildProfileSummary } from "../github";
 
@@ -22,7 +22,7 @@ async function generateLinkedInPost(
   const summary = buildProfileSummary(profileData);
   const topGap = gaps[0];
 
-  const res = await openai.chat.completions.create({
+  const res = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
@@ -65,7 +65,7 @@ async function generateXThread(
 ): Promise<string> {
   const summary = buildProfileSummary(profileData);
 
-  const res = await openai.chat.completions.create({
+  const res = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     messages: [
       {
@@ -113,7 +113,7 @@ async function generateGitHubReadme(
 ): Promise<string> {
   const { profile, activity } = profileData;
 
-  const res = await openai.chat.completions.create({
+  const res = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     messages: [
       {

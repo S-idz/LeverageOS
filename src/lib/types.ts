@@ -139,8 +139,7 @@ export interface AnalyzeResponse {
   jobId: string;
 }
 
+// Events emitted by GET /api/stream/[jobId] and consumed by the analyzing page.
 export type SSEEvent =
-  | { type: "agent_update"; data: AgentUpdate }
-  | { type: "stream_text"; data: { text: string } }
-  | { type: "complete"; data: { reportId: string } }
+  | { type: "job_update"; data: Job }
   | { type: "error"; data: { message: string } };
