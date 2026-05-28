@@ -1,5 +1,5 @@
 // ============================================================
-// LeverageOS — Core Types
+// LeverageOS - Core Types
 // ============================================================
 
 export interface GitHubProfile {
@@ -42,12 +42,41 @@ export interface GitHubActivity {
   topRepos: GitHubRepo[];
 }
 
+export interface CoverageMetric {
+  covered: number;
+  total: number;
+  ratio: number;
+  summary: string;
+}
+
+export interface EvidenceRepo {
+  name: string;
+  language: string | null;
+  stars: number;
+  description: string | null;
+  url: string;
+}
+
+export interface ProfileEvidence {
+  strongestLanguages: string[];
+  topRepos: EvidenceRepo[];
+  activityRecencyDays: number | null;
+  activityLabel: string;
+  hasProfileReadme: boolean;
+  bioQuality: "strong" | "thin" | "missing";
+  descriptionCoverage: CoverageMetric;
+  topicsCoverage: CoverageMetric;
+  proofPoints: string[];
+  summary: string;
+}
+
 export interface ProfileData {
   profile: GitHubProfile;
   repos: GitHubRepo[];
   activity: GitHubActivity;
   selfDescription: string;
-  linkedinUrl?: string;
+  targetRole?: string;
+  profileEvidence: ProfileEvidence;
 }
 
 export interface VisibilityGap {
@@ -56,14 +85,71 @@ export interface VisibilityGap {
   description: string;
   impact: "critical" | "high" | "medium" | "low";
   fixTimeMinutes: number;
-  category: "profile" | "content" | "activity" | "communication" | "discoverability";
+  category:
+    | "profile"
+    | "content"
+    | "activity"
+    | "communication"
+    | "discoverability";
   recruiterImpact: string;
+  evidence: string[];
 }
 
-export interface GeneratedContent {
-  linkedinPost: string;
-  xThread: string;
-  githubReadme: string;
+export interface FixItem {
+  content: string;
+  why: string;
+  evidence: string[];
+}
+
+export interface RepoDescriptionFix {
+  repoName: string;
+  description: string;
+  why: string;
+  evidence: string[];
+}
+
+export interface PinnedRepoChoice {
+  repoName: string;
+  rationale: string;
+}
+
+export interface PinnedRepoStrategy {
+  order: PinnedRepoChoice[];
+  why: string;
+  evidence: string[];
+}
+
+export interface ActionPlanStep {
+  title: string;
+  detail: string;
+}
+
+export interface ThirtyDayActionPlan {
+  steps: ActionPlanStep[];
+  why: string;
+  evidence: string[];
+}
+
+export interface FixKit {
+  githubBio: FixItem;
+  githubProfileReadme: FixItem;
+  repoDescriptions: RepoDescriptionFix[];
+  pinnedRepoStrategy: PinnedRepoStrategy;
+  linkedinHeadline: FixItem;
+  linkedinAbout: FixItem;
+  xThread: FixItem;
+  linkedinPost: FixItem;
+  resumeBullets: FixItem;
+  coldOutreachDm: FixItem;
+  thirtyDayActionPlan: ThirtyDayActionPlan;
+}
+
+export interface OpportunityResult {
+  title: string;
+  url: string;
+  type: "job" | "hackathon" | "oss" | "grant";
+  why: string;
+  deadline?: string;
 }
 
 export interface PerceptionScores {
@@ -80,11 +166,13 @@ export interface AnalysisResult {
   createdAt: string;
   githubUsername: string;
   profileData: ProfileData;
+  profileEvidence: ProfileEvidence;
   recruiterNarrative: string;
   visibilityGaps: VisibilityGap[];
-  generatedContent: GeneratedContent;
+  fixKit: FixKit;
   scores: PerceptionScores;
   opportunitySignals: string[];
+  opportunities: OpportunityResult[];
 }
 
 // ============================================================
@@ -95,8 +183,9 @@ export type AgentName =
   | "Profile Ingestion"
   | "Recruiter Simulation"
   | "Visibility Gap Analysis"
-  | "Content Generation"
-  | "Reputation Scoring";
+  | "Fix Kit Generation"
+  | "Reputation Scoring"
+  | "Opportunity Scout";
 
 export type AgentStatus = "pending" | "running" | "complete" | "error";
 
@@ -121,8 +210,9 @@ export const AGENT_ORDER: AgentName[] = [
   "Profile Ingestion",
   "Recruiter Simulation",
   "Visibility Gap Analysis",
-  "Content Generation",
+  "Fix Kit Generation",
   "Reputation Scoring",
+  "Opportunity Scout",
 ];
 
 // ============================================================
@@ -131,15 +221,14 @@ export const AGENT_ORDER: AgentName[] = [
 
 export interface AnalyzeRequest {
   githubUsername: string;
-  linkedinUrl?: string;
   selfDescription: string;
+  targetRole?: string;
 }
 
 export interface AnalyzeResponse {
   jobId: string;
 }
 
-// Events emitted by GET /api/stream/[jobId] and consumed by the analyzing page.
 export type SSEEvent =
   | { type: "job_update"; data: Job }
   | { type: "error"; data: { message: string } };

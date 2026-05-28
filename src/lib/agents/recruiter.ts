@@ -1,9 +1,10 @@
 // ============================================================
-// LeverageOS — Recruiter Simulation Agent
+// LeverageOS - Recruiter Simulation Agent
 // Simulates how a senior recruiter perceives the profile
 // ============================================================
 
 import { getOpenAI } from "../openai";
+import { streamingModel } from "../models";
 import { ProfileData } from "../types";
 import { buildProfileSummary } from "../github";
 
@@ -15,18 +16,50 @@ You are honest, direct, and ruthlessly efficient. You have 45 seconds to evaluat
 Your job is to write your UNFILTERED internal monologue as you review this profile.
 Write exactly 3 paragraphs:
 
-Paragraph 1: Your IMMEDIATE first impression (what hits you in the first 10 seconds — profile, bio, readme, overall presence)
-Paragraph 2: Your TECHNICAL assessment (repo quality, code activity, skills signal, depth vs. breadth)
-Paragraph 3: Your DECISION + reasoning (would you reach out? what specific things made you hesitate? what would make this candidate stronger?)
+Paragraph 1: Your immediate first impression
+Paragraph 2: Your technical assessment
+Paragraph 3: Your decision and reasoning
 
 Rules:
 - Be brutally honest but constructive
-- Reference SPECIFIC things from their profile (repo names, languages, activity patterns)
-- Do NOT be generic — every sentence must be specific to this person
+- Reference specific things from their profile
+- Do not be generic
 - Write in first person as Marcus
-- Use the word "I" naturally throughout
-- Don't soften criticism — recruiters aren't kind, they're efficient
 - Keep each paragraph to 3-4 sentences max`;
+
+export function buildFallbackRecruiterNarrative(profileData: ProfileData): string {
+  const { profile, activity, profileEvidence, targetRole } = profileData;
+  const topRepo = profileEvidence.topRepos[0];
+  const strongestLanguage = profileEvidence.strongestLanguages[0] ?? "their stack";
+
+  const firstParagraph = [
+    `I can tell there is real technical work behind ${profile.name ?? profile.username}, but the first impression still undersells it.`,
+    profile.hasReadme
+      ? "The profile README helps, but the narrative still needs to land faster."
+      : "The missing profile README hurts immediately because I have no fast narrative anchor.",
+    profile.bio
+      ? `The bio gives me some context, but it does not point sharply enough at ${targetRole ?? "the role they want"}.`
+      : "The empty or thin bio makes the profile feel unfinished in the first few seconds.",
+  ].join(" ");
+
+  const secondParagraph = [
+    `The strongest signal I see is ${strongestLanguage}${topRepo ? ` and especially ${topRepo.name}` : ""}.`,
+    activity.totalStars > 0
+      ? `${activity.totalStars} total stars tells me there is at least some external validation here.`
+      : "There is not much visible external validation yet, so I am forced to infer quality from scattered repo details.",
+    `The biggest packaging issue is that ${profileEvidence.descriptionCoverage.summary.toLowerCase()} while ${profileEvidence.topicsCoverage.summary.toLowerCase()}.`,
+  ].join(" ");
+
+  const thirdParagraph = [
+    activity.longestGapDays > 60
+      ? "I would hesitate to reach out right now because the profile reads colder than it probably is."
+      : "I could justify a reach-out if the role fits, but the profile still makes me work too hard.",
+    "A tighter bio, cleaner repo descriptions, and a stronger pinned-story setup would change my confidence quickly.",
+    "There is likely more substance here than the profile currently communicates.",
+  ].join(" ");
+
+  return [firstParagraph, secondParagraph, thirdParagraph].join("\n\n");
+}
 
 export async function runRecruiterSimulation(
   profileData: ProfileData,
@@ -35,16 +68,18 @@ export async function runRecruiterSimulation(
   const profileSummary = buildProfileSummary(profileData);
 
   const stream = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: streamingModel(),
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Review this candidate's GitHub profile and give me your honest recruiter perspective:\n\n${profileSummary}`,
+        content: `Review this candidate's GitHub profile and give me your honest recruiter perspective:
+
+${profileSummary}`,
       },
     ],
     stream: true,
-    max_tokens: 600,
+    max_tokens: 500,
     temperature: 0.85,
   });
 

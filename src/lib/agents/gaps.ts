@@ -1,122 +1,147 @@
 // ============================================================
-// LeverageOS — Visibility Gap Analysis Agent
+// LeverageOS - Visibility Gap Analysis Agent
 // Hybrid: rules-based detection + LLM explanation
 // ============================================================
 
 import { getOpenAI } from "../openai";
+import { chatModel } from "../models";
 import { ProfileData, VisibilityGap } from "../types";
 import { buildProfileSummary } from "../github";
 import { v4 as uuidv4 } from "uuid";
 
-// ---- Rules Engine ----
-// Fast, reliable, deterministic detection
 function detectRuleBasedGaps(data: ProfileData): VisibilityGap[] {
   const gaps: VisibilityGap[] = [];
-  const { profile, repos, activity } = data;
+  const { profile, repos, activity, profileEvidence } = data;
 
-  // G1: No profile README
   if (!profile.hasReadme) {
     gaps.push({
       id: uuidv4(),
       title: "No GitHub Profile README",
-      description: `Your profile has no README.md. This is the first thing recruiters see when they visit your GitHub — it's your digital handshake. Without it, your profile looks abandoned.`,
+      description:
+        "Your profile has no README.md. This is the first thing recruiters see when they visit your GitHub, and without it your profile looks unfinished.",
       impact: "critical",
       fixTimeMinutes: 15,
       category: "profile",
       recruiterImpact:
-        "80% of recruiters immediately look for a profile README. Missing it signals low effort.",
+        "Recruiters immediately look for a profile README. Missing it signals low effort.",
+      evidence: [
+        "GitHub profile README is currently missing.",
+        profileEvidence.summary,
+      ],
     });
   }
 
-  // G2: No/empty bio
   if (!profile.bio || profile.bio.trim().length < 20) {
     gaps.push({
       id: uuidv4(),
       title: "Missing or Thin GitHub Bio",
       description: `Your bio is ${
         profile.bio ? "too short to be useful" : "completely empty"
-      }. Your bio is 160 characters of prime real estate recruiters read in 5 seconds.`,
+      }. This is prime profile real estate and should tell recruiters what you do in seconds.`,
       impact: "high",
       fixTimeMinutes: 5,
       category: "profile",
       recruiterImpact:
-        "Recruiters scan bio for role, stack, and personality. Empty bio = invisible candidate.",
+        "Recruiters scan bio for role, stack, and positioning. Empty bio means weak first-pass clarity.",
+      evidence: [
+        profile.bio
+          ? `Current bio length is ${profile.bio.trim().length} characters.`
+          : "GitHub bio is currently empty.",
+        profileEvidence.summary,
+      ],
     });
   }
 
-  // G3: Repos missing descriptions
-  const reposWithoutDesc = repos.filter((r) => !r.hasDescription).length;
+  const reposWithoutDesc = repos.filter((repo) => !repo.hasDescription).length;
   const repoDescRatio = repos.length > 0 ? reposWithoutDesc / repos.length : 1;
   if (repoDescRatio > 0.5 && repos.length > 2) {
     gaps.push({
       id: uuidv4(),
       title: `${reposWithoutDesc}/${repos.length} Repos Have No Description`,
-      description: `More than half your repositories have no description. Recruiters cannot determine project quality without reading code — they won't. These repos are invisible to screening.`,
+      description:
+        "More than half your repositories have no description. Recruiters will not read source code to understand project quality, so these repos lose most of their signaling power.",
       impact: repoDescRatio > 0.75 ? "critical" : "high",
       fixTimeMinutes: 20,
       category: "content",
       recruiterImpact:
-        "Recruiters skip repos with no description. Each undescribed repo is a missed signal.",
+        "Each repo without a description is a missed chance to communicate scope and usefulness.",
+      evidence: [
+        profileEvidence.descriptionCoverage.summary,
+        "Recruiters should not need to inspect source code to understand what a project is.",
+      ],
     });
   }
 
-  // G4: Low activity / inactive
-  if (
-    activity.commitFrequency === "inactive" ||
-    activity.longestGapDays > 90
-  ) {
+  if (activity.commitFrequency === "inactive" || activity.longestGapDays > 90) {
     gaps.push({
       id: uuidv4(),
       title: `Profile Appears Inactive (${activity.longestGapDays}+ days)`,
-      description: `Your last commit was ${activity.longestGapDays}+ days ago. Recruiters interpret inactivity as disengagement — even if you've been busy with private work or coursework.`,
+      description:
+        "Your visible GitHub activity looks stale. Even if you have been shipping privately, the public signal currently reads as low momentum.",
       impact: "high",
       fixTimeMinutes: 30,
       category: "activity",
       recruiterImpact:
-        "Active GitHub profiles get 3x more recruiter outreach. Gaps without explanation hurt.",
+        "Long unexplained activity gaps make recruiters question current engagement and sharpness.",
+      evidence: [
+        `Last visible GitHub activity was about ${activity.longestGapDays} days ago.`,
+        `Commit frequency currently reads as ${activity.commitFrequency}.`,
+      ],
     });
   }
 
-  // G5: No topics/tags on repos
-  const reposWithTopics = repos.filter((r) => r.hasTopics).length;
+  const reposWithTopics = repos.filter((repo) => repo.hasTopics).length;
   if (reposWithTopics === 0 && repos.length > 2) {
     gaps.push({
       id: uuidv4(),
       title: "No Repository Topics/Tags",
-      description: `None of your repositories have topics. GitHub uses topics for discovery. Without them, your repos don't appear in technology-specific searches recruiters run.`,
+      description:
+        "None of your repositories have topics. That makes them much harder to discover through technology-specific search and filtering.",
       impact: "medium",
       fixTimeMinutes: 15,
       category: "discoverability",
       recruiterImpact:
-        "GitHub topics drive organic discovery. Missing topics = invisible in search.",
+        "Topics improve GitHub discoverability and make it easier to map repos to a specific stack.",
+      evidence: [
+        profileEvidence.topicsCoverage.summary,
+        "GitHub search and recruiter filters rely on tags/topics for fast discovery.",
+      ],
     });
   }
 
-  // G6: Low follower count for experience level
   if (profile.followers < 5 && profile.publicRepos > 5) {
     gaps.push({
       id: uuidv4(),
       title: "No Community Presence",
-      description: `You have ${profile.publicRepos} repos but only ${profile.followers} followers. This signals you're building in isolation — no community engagement, no professional network on GitHub.`,
+      description:
+        "You have visible output but almost no social proof around it. The profile reads isolated rather than connected to a broader builder community.",
       impact: "medium",
       fixTimeMinutes: 60,
       category: "discoverability",
       recruiterImpact:
-        "Community engagement signals seniority and professional maturity.",
+        "Community engagement acts as a proxy for visibility, maturity, and peer validation.",
+      evidence: [
+        `${profile.publicRepos} public repos but only ${profile.followers} followers.`,
+        "There is little visible audience pull or community signal around the profile yet.",
+      ],
     });
   }
 
-  // G7: No blog/website linked
   if (!profile.blog || profile.blog.trim() === "") {
     gaps.push({
       id: uuidv4(),
       title: "No Portfolio/Website Linked",
-      description: `Your profile has no website or portfolio link. Candidates with a linked portfolio get significantly more recruiter clicks — it shows you care about presentation.`,
+      description:
+        "Your profile has no website or portfolio link, so there is no second destination for recruiters to validate polish, context, or professional narrative.",
       impact: "medium",
       fixTimeMinutes: 60,
       category: "profile",
       recruiterImpact:
-        "Portfolio link = 2x profile engagement from recruiters.",
+        "A strong second destination increases trust and gives recruiters another surface to evaluate you quickly.",
+      evidence: [
+        "GitHub profile does not currently link to a website or portfolio.",
+        "Recruiters have no second destination to validate narrative and polish.",
+      ],
     });
   }
 
@@ -126,7 +151,6 @@ function detectRuleBasedGaps(data: ProfileData): VisibilityGap[] {
     .slice(0, 5);
 }
 
-// ---- LLM-Enhanced Gap: Strategic Narrative ----
 async function generateStrategicInsight(
   profileData: ProfileData,
   rulesGaps: VisibilityGap[],
@@ -134,44 +158,47 @@ async function generateStrategicInsight(
 ): Promise<VisibilityGap | null> {
   try {
     const summary = buildProfileSummary(profileData);
-    const gapTitles = rulesGaps.map((g) => g.title).join(", ");
+    const gapTitles = rulesGaps.map((gap) => gap.title).join(", ");
 
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+      model: chatModel(),
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are a career visibility strategist. Based on a GitHub profile analysis and recruiter feedback, identify ONE strategic gap that the rules engine may have missed.
+          content: `You are a career visibility strategist.
+Based on a GitHub profile analysis and recruiter feedback, identify exactly one additional strategic gap the rules engine may have missed.
 
-Focus on: narrative coherence, positioning clarity, technical specialization signals, or opportunity alignment.
-
-Return ONLY a JSON object with this structure:
+Return JSON only:
 {
   "title": "short gap title",
-  "description": "2-3 sentence specific description referencing their actual profile",
+  "description": "2-3 sentence specific description",
   "impact": "high" or "medium",
   "fixTimeMinutes": number,
   "category": "profile" or "content" or "communication",
-  "recruiterImpact": "one sentence on recruiter impact"
+  "recruiterImpact": "one sentence on recruiter impact",
+  "evidence": ["fact 1", "fact 2"]
 }`,
         },
         {
           role: "user",
-          content: `Profile:\n${summary}\n\nRecruiter said:\n${recruiterNarrative}\n\nAlready detected gaps: ${gapTitles}\n\nWhat ONE additional strategic gap do you see?`,
+          content: `Profile:
+${summary}
+
+Recruiter said:
+${recruiterNarrative}
+
+Already detected gaps: ${gapTitles}
+
+What one additional strategic gap do you see?`,
         },
       ],
-      response_format: { type: "json_object" },
-      max_tokens: 300,
+      max_tokens: 320,
       temperature: 0.7,
     });
 
     const content = response.choices[0]?.message?.content ?? "{}";
-    let raw: Partial<VisibilityGap> = {};
-    try {
-      raw = JSON.parse(content) as Partial<VisibilityGap>;
-    } catch {
-      return null;
-    }
+    const raw = JSON.parse(content) as Partial<VisibilityGap>;
 
     if (!raw.title) return null;
 
@@ -183,6 +210,9 @@ Return ONLY a JSON object with this structure:
       fixTimeMinutes: raw.fixTimeMinutes ?? 30,
       category: (raw.category as VisibilityGap["category"]) ?? "profile",
       recruiterImpact: raw.recruiterImpact ?? "",
+      evidence: Array.isArray(raw.evidence)
+        ? raw.evidence.filter((item): item is string => typeof item === "string").slice(0, 3)
+        : profileData.profileEvidence.proofPoints.slice(0, 2),
     };
   } catch {
     return null;
@@ -194,8 +224,6 @@ export async function runVisibilityGapAnalysis(
   recruiterNarrative: string
 ): Promise<VisibilityGap[]> {
   const rulesGaps = detectRuleBasedGaps(profileData);
-
-  // Add one LLM-powered strategic gap
   const strategicGap = await generateStrategicInsight(
     profileData,
     rulesGaps,

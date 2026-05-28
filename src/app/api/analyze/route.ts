@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { startAnalysis } from "@/lib/orchestrator";
+import { MissingEnvironmentVariableError, getRequiredEnv } from "@/lib/env";
 import { AnalyzeRequest } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,9 +13,10 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as Partial<AnalyzeRequest>;
+    getRequiredEnv("OPENAI_API_KEY");
 
-    const { githubUsername, selfDescription, linkedinUrl } = body;
+    const body = (await req.json()) as Partial<AnalyzeRequest>;
+    const { githubUsername, selfDescription, targetRole } = body;
 
     if (!githubUsername || typeof githubUsername !== "string") {
       return NextResponse.json(
@@ -30,17 +32,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanUsername = githubUsername.trim().replace(/^@/, "").replace(/https?:\/\/github\.com\//i, "");
+    const cleanUsername = githubUsername
+      .trim()
+      .replace(/^@/, "")
+      .replace(/https?:\/\/github\.com\//i, "");
 
     const jobId = await startAnalysis({
       githubUsername: cleanUsername,
       selfDescription: selfDescription.trim(),
-      linkedinUrl: linkedinUrl?.trim(),
+      targetRole: targetRole?.trim(),
     });
 
     return NextResponse.json({ jobId });
   } catch (err) {
     console.error("Analyze error:", err);
+
+    if (err instanceof MissingEnvironmentVariableError) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+
     return NextResponse.json(
       { error: "Failed to start analysis" },
       { status: 500 }

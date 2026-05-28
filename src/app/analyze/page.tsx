@@ -4,16 +4,46 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Nav } from "@/components/Nav";
 
+const WHAT_YOU_GET = [
+  {
+    icon: "01",
+    label: "Fix Now Kit",
+    detail: "GitHub bio, README, repo descriptions, and pinned repo plan",
+  },
+  {
+    icon: "02",
+    label: "Recruiter View",
+    detail: "A blunt recruiter-style read of how your profile currently lands",
+  },
+  {
+    icon: "03",
+    label: "Visibility Gaps",
+    detail: "Top blockers with evidence and likely recruiter impact",
+  },
+  {
+    icon: "04",
+    label: "Social Proof Copy",
+    detail: "LinkedIn headline, About, post, and X thread grounded in your repos",
+  },
+  {
+    icon: "05",
+    label: "30-Day Plan",
+    detail: "Small follow-through actions so the cleanup compounds",
+  },
+];
+
 function Field({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-col gap-1.5">{children}</div>;
 }
 
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="text-sm font-medium" style={{ color: "var(--text)" }}>
+    <label className="text-sm font-semibold" style={{ color: "var(--text)" }}>
       {children}
       {required && (
-        <span className="ml-1" style={{ color: "var(--accent)" }}>*</span>
+        <span className="ml-1" style={{ color: "var(--accent)" }}>
+          *
+        </span>
       )}
     </label>
   );
@@ -21,7 +51,9 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
 
 function Hint({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs" style={{ color: "var(--text-muted)" }}>{children}</p>
+    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+      {children}
+    </p>
   );
 }
 
@@ -37,7 +69,7 @@ const FOCUS_HANDLERS = {
 };
 
 const FIELD_STYLE: React.CSSProperties = {
-  background: "var(--surface)",
+  background: "var(--surface-2)",
   border: "1px solid var(--border)",
   color: "var(--text)",
   borderRadius: "0.75rem",
@@ -51,12 +83,13 @@ const FIELD_STYLE: React.CSSProperties = {
 export default function AnalyzePage() {
   const router = useRouter();
   const [githubUsername, setGithubUsername] = useState("");
-  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [targetRole, setTargetRole] = useState("");
   const [selfDescription, setSelfDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const canSubmit = githubUsername.trim().length > 0 && selfDescription.trim().length > 10;
+  const canSubmit =
+    githubUsername.trim().length > 0 && selfDescription.trim().length > 10;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,8 +104,8 @@ export default function AnalyzePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           githubUsername: githubUsername.trim(),
-          linkedinUrl: linkedinUrl.trim() || undefined,
           selfDescription: selfDescription.trim(),
+          targetRole: targetRole.trim() || undefined,
         }),
       });
 
@@ -84,7 +117,11 @@ export default function AnalyzePage() {
       const { jobId } = (await res.json()) as { jobId: string };
       router.push(`/analyzing/${jobId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Check your GitHub username and try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Check your GitHub username and try again."
+      );
       setLoading(false);
     }
   }
@@ -93,45 +130,68 @@ export default function AnalyzePage() {
     <main className="min-h-screen flex flex-col">
       <Nav subtitle="Step 1 of 3" />
 
-      <div className="flex flex-1 items-center justify-center px-5 py-16">
-        <div className="w-full max-w-md">
-
-          {/* Header */}
-          <div className="mb-10 fade-up">
+      <div className="flex flex-1 px-5 py-12 md:py-16 gap-10 max-w-5xl mx-auto w-full">
+        <div className="flex-1 min-w-0">
+          <div className="mb-8 fade-up">
             <div
-              className="inline-flex items-center gap-1.5 text-xs font-mono px-2.5 py-1 rounded-full mb-4"
+              className="inline-flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-full mb-5"
               style={{
                 background: "var(--accent-dim)",
                 color: "var(--accent)",
                 border: "1px solid var(--accent-glow)",
               }}
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-current" />
-              Reputation Intelligence
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+              Public GitHub + your context only
             </div>
             <h1
-              className="text-3xl font-bold mb-2"
-              style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
+              className="text-3xl sm:text-4xl font-extrabold mb-3"
+              style={{ color: "var(--text)", letterSpacing: "-0.025em" }}
             >
-              Analyze your profile
+              Turn your GitHub into a stronger recruiter signal
             </h1>
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-dim)" }}>
-              Two fields. 90 seconds. See exactly how a recruiter perceives you.
+              We analyze your public GitHub profile plus the context you type below. No LinkedIn scraping, no private repo access, no account needed.
             </p>
           </div>
 
-          {/* Form card */}
+          <div className="flex items-center gap-2 mb-8 fade-up fade-up-1">
+            {["Enter details", "5 agents run", "Apply fixes"].map((step, i) => (
+              <div key={step} className="flex items-center gap-2">
+                {i > 0 && (
+                  <div className="w-8 h-px" style={{ background: "var(--border)" }} />
+                )}
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                    style={{
+                      background: i === 0 ? "var(--accent)" : "var(--surface-2)",
+                      color: i === 0 ? "#07090d" : "var(--text-muted)",
+                      border: i === 0 ? "none" : "1px solid var(--border)",
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <span
+                    className="text-xs font-medium hidden sm:block"
+                    style={{ color: i === 0 ? "var(--text)" : "var(--text-muted)" }}
+                  >
+                    {step}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div
-            className="rounded-2xl p-6 fade-up fade-up-1"
+            className="rounded-2xl p-6 fade-up fade-up-2"
             style={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
-              boxShadow: "0 4px 32px rgba(0,0,0,0.3)",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.35)",
             }}
           >
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-
-              {/* GitHub username */}
               <Field>
                 <Label required>GitHub Username</Label>
                 <div className="relative">
@@ -154,90 +214,162 @@ export default function AnalyzePage() {
                     {...FOCUS_HANDLERS}
                   />
                 </div>
-                <Hint>Only public GitHub profiles · no auth required</Hint>
+                <Hint>Public GitHub profiles only</Hint>
               </Field>
 
-              {/* Self description */}
               <Field>
                 <Label required>What are you best known for technically?</Label>
                 <textarea
                   value={selfDescription}
                   onChange={(e) => setSelfDescription(e.target.value)}
-                  placeholder="e.g. CS junior at Georgia Tech building ML systems. 3 deployed NLP projects, strong Python background."
+                  placeholder="e.g. Shipped ML tooling in Python, built full-stack product features, and want to be seen as an engineer who can ship practical systems."
                   required
-                  rows={3}
+                  rows={4}
                   style={{ ...FIELD_STYLE, resize: "none" }}
                   {...FOCUS_HANDLERS}
                 />
-                <Hint>1–3 sentences · helps the AI calibrate your positioning</Hint>
+                <div className="flex items-center justify-between">
+                  <Hint>1-3 sentences. This calibrates the role/narrative you want the AI to optimize for.</Hint>
+                  <span
+                    className="text-xs font-mono"
+                    style={{
+                      color:
+                        selfDescription.length > 10
+                          ? "var(--accent)"
+                          : "var(--text-muted)",
+                    }}
+                  >
+                    {selfDescription.length} chars
+                  </span>
+                </div>
               </Field>
 
-              {/* LinkedIn — optional, collapsed */}
               <Field>
-                <Label>
-                  LinkedIn URL{" "}
-                  <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>
-                    — optional
-                  </span>
-                </Label>
+                <Label>Target Role</Label>
                 <input
-                  type="url"
-                  value={linkedinUrl}
-                  onChange={(e) => setLinkedinUrl(e.target.value)}
-                  placeholder="https://linkedin.com/in/yourname"
+                  type="text"
+                  value={targetRole}
+                  onChange={(e) => setTargetRole(e.target.value)}
+                  placeholder="e.g. Full-Stack Engineer, ML Engineer, Founding Engineer"
                   style={FIELD_STYLE}
                   {...FOCUS_HANDLERS}
                 />
+                <Hint>Optional. Helps the fixer package your profile for a more specific outcome.</Hint>
               </Field>
 
-              {/* Divider */}
               <div style={{ borderTop: "1px solid var(--border)" }} />
 
-              {/* Error */}
               {error && (
                 <div
-                  className="px-4 py-3 rounded-xl text-sm"
+                  className="px-4 py-3 rounded-xl text-sm flex items-start gap-2.5"
                   style={{
-                    background: "rgba(255,77,109,0.1)",
+                    background: "rgba(255,77,109,0.08)",
                     border: "1px solid rgba(255,77,109,0.25)",
                     color: "var(--red)",
                   }}
                 >
-                  ⚠ {error}
+                  <span className="shrink-0 mt-0.5">!</span>
+                  <span>{error}</span>
                 </div>
               )}
 
-              {/* Submit */}
               <button
                 type="submit"
                 disabled={loading || !canSubmit}
-                className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full py-4 rounded-xl font-bold text-sm transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 style={{
-                  background: canSubmit && !loading ? "var(--accent)" : "var(--surface-2)",
-                  color: canSubmit && !loading ? "#07090d" : "var(--text-muted)",
-                  boxShadow: canSubmit && !loading ? "0 0 16px var(--accent-glow)" : "none",
-                  transform: "translateZ(0)",
+                  background:
+                    canSubmit && !loading ? "var(--accent)" : "var(--surface-2)",
+                  color:
+                    canSubmit && !loading ? "#07090d" : "var(--text-muted)",
+                  boxShadow:
+                    canSubmit && !loading ? "0 0 20px var(--accent-glow)" : "none",
+                  border:
+                    canSubmit && !loading ? "none" : "1px solid var(--border)",
                 }}
               >
                 {loading ? (
-                  <span className="flex items-center justify-center gap-2">
+                  <span className="flex items-center justify-center gap-2.5">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     Launching 5 agents...
                   </span>
                 ) : (
-                  "Analyze My Profile →"
+                  "Analyze and build my fix kit ->"
                 )}
               </button>
             </form>
           </div>
 
-          {/* Trust line */}
           <p
-            className="text-xs text-center mt-4 fade-up fade-up-2"
+            className="text-xs text-center mt-4 fade-up fade-up-3"
             style={{ color: "var(--text-muted)" }}
           >
-            Free · No account · ~90 seconds · Public repos only
+            Public GitHub only - user-provided context only - about 90 seconds
           </p>
+        </div>
+
+        <div className="hidden lg:flex flex-col gap-4 w-80 shrink-0 pt-2 fade-up">
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div
+              className="px-5 py-4 border-b"
+              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+            >
+              <p
+                className="text-xs font-mono uppercase tracking-widest"
+                style={{ color: "var(--text-muted)" }}
+              >
+                What you get
+              </p>
+            </div>
+            <div className="p-4 flex flex-col gap-2">
+              {WHAT_YOU_GET.map((item) => (
+                <div
+                  key={item.label}
+                  className="flex items-start gap-3 px-3 py-3 rounded-lg"
+                  style={{ background: "var(--surface-2)" }}
+                >
+                  <span
+                    className="text-xs shrink-0 w-7 h-7 rounded-full flex items-center justify-center font-mono font-bold"
+                    style={{ background: "var(--surface-3)", color: "var(--accent)" }}
+                  >
+                    {item.icon}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>
+                      {item.label}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                      {item.detail}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div
+            className="rounded-xl px-5 py-4"
+            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span
+                className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: "var(--accent)" }}
+              />
+              <span className="text-xs font-mono" style={{ color: "var(--accent)" }}>
+                Evidence-backed fix flow
+              </span>
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              The app uses public GitHub data plus your own positioning context to build fixes you can apply immediately. It does not inspect private repos or scrape LinkedIn.
+            </p>
+          </div>
         </div>
       </div>
     </main>

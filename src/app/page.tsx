@@ -1,390 +1,342 @@
 import Link from "next/link";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
+  BookOpen,
+  CircleDot,
+  Eye,
+  FilePenLine,
+  GitBranch,
+  MessageSquareText,
+  Radar,
+  Wrench,
+  Zap,
+} from "lucide-react";
 import { Nav } from "@/components/Nav";
 
-/* ── Static data ─────────────────────────────────────────── */
 const STATS = [
-  { value: "90s",  label: "full analysis" },
-  { value: "5",    label: "AI agents" },
-  { value: "47K+", label: "devs analyzed" },
+  { value: "90s", label: "average fix-kit time" },
+  { value: "6", label: "autonomous agents" },
+  { value: "11+", label: "copy-ready outputs" },
 ];
 
 const PAINS = [
   {
-    icon: "◈",
-    title: "You've shipped real projects.",
-    sub: "Nobody knows.",
-    detail: "11 of 14 repos have no description. A recruiter spends 45 seconds on your profile and moves on — without reading a single line of code.",
+    num: "01",
+    title: "You shipped real work.",
+    punch: "The profile still whispers.",
+    detail:
+      "Without a README, repo descriptions, and a clear signal hierarchy, strong projects look smaller than they are.",
+    color: "var(--red)",
   },
   {
-    icon: "◉",
-    title: "You have 200+ commits.",
-    sub: "It looks like zero.",
-    detail: "No profile README. No bio. No activity narrative. Your GitHub says nothing about who you are or what you can build.",
+    num: "02",
+    title: "You have technical proof.",
+    punch: "It is badly packaged.",
+    detail:
+      "Recruiters scan for clarity, role fit, and obvious proof. They do not reverse-engineer your GitHub to find it.",
+    color: "var(--orange)",
   },
   {
-    icon: "◎",
-    title: "You're applying everywhere.",
-    sub: "Getting nothing back.",
-    detail: "The internet rewards visibility and storytelling — not raw skill. You're technically strong and completely invisible.",
+    num: "03",
+    title: "You need more visibility.",
+    punch: "Not more generic advice.",
+    detail:
+      "The fastest path is turning the work you already shipped into better profile copy, better repo framing, and better social proof.",
+    color: "var(--yellow)",
   },
 ];
 
 const AGENTS = [
   {
-    n: "01", icon: "◈",
+    n: "01",
     title: "Profile Ingestion",
-    desc: "Fetches repos, commit activity, README state, bio, and language signals from GitHub's public API.",
+    desc: "Collects public GitHub evidence: repos, activity, README state, bio quality, language mix, and proof points.",
+    Icon: GitBranch,
   },
   {
-    n: "02", icon: "◉",
+    n: "02",
     title: "Recruiter Simulation",
-    desc: "A simulated senior recruiter reviews your profile and streams their unfiltered, honest assessment.",
+    desc: "Reads your profile like a recruiter and tells you what lands fast, what confuses them, and what gets skipped.",
+    Icon: Eye,
+    active: true,
   },
   {
-    n: "03", icon: "◎",
-    title: "Visibility Gap Analysis",
-    desc: "Hybrid rules-engine + LLM identifies your top 5 missing signals with impact ratings and fix times.",
+    n: "03",
+    title: "Gap Analysis",
+    desc: "Ranks the biggest blockers by severity, effort, and recruiter impact.",
+    Icon: Radar,
   },
   {
-    n: "04", icon: "◆",
-    title: "Content Generation",
-    desc: "Writes a LinkedIn post, X thread, and GitHub README tailored to your exact profile — in parallel.",
+    n: "04",
+    title: "Fix Kit Generation",
+    desc: "Builds the exact copy and positioning assets you can apply right away.",
+    Icon: Wrench,
   },
   {
-    n: "05", icon: "◐",
+    n: "05",
     title: "Reputation Scoring",
-    desc: "Scores 5 dimensions: Technical Credibility, Communication, Consistency, Discoverability, Completeness.",
+    desc: "Scores technical credibility, communication, consistency, discoverability, and completeness.",
+    Icon: BarChart3,
+  },
+  {
+    n: "06",
+    title: "Opportunity Scout",
+    desc: "Searches the live web via OpenAI Responses API to find matching jobs, hackathons, grants, and open-source projects.",
+    Icon: Radar,
   },
 ];
 
-/* ── Mock score preview (static, no JS needed) ────────────── */
-const PREVIEW_BARS = [
-  { label: "Technical Credibility", score: 71, color: "var(--green)" },
-  { label: "Communication Clarity", score: 28, color: "var(--red)" },
-  { label: "Consistency",           score: 55, color: "var(--yellow)" },
-  { label: "Discoverability",       score: 19, color: "var(--red)" },
-  { label: "Profile Completeness",  score: 62, color: "var(--yellow)" },
+const OUTCOMES = [
+  {
+    Icon: FilePenLine,
+    label: "Fix Now Kit",
+    sub: "Bio, README, repo descriptions, pinned plan",
+  },
+  {
+    Icon: Eye,
+    label: "Recruiter Read",
+    sub: "A fast, blunt profile assessment",
+  },
+  {
+    Icon: CircleDot,
+    label: "Perception Score",
+    sub: "5-dimension recruiter view",
+  },
+  {
+    Icon: MessageSquareText,
+    label: "Social Proof Copy",
+    sub: "LinkedIn post, X thread, and more",
+  },
+  {
+    Icon: FilePenLine,
+    label: "Resume Bullets",
+    sub: "STAR-format bullets ready to paste",
+  },
+  {
+    Icon: MessageSquareText,
+    label: "Cold Outreach DM",
+    sub: "Personalized recruiter message template",
+  },
+  {
+    Icon: Radar,
+    label: "Live Opportunities",
+    sub: "Jobs, hackathons, grants — found in real time",
+  },
+  {
+    Icon: BookOpen,
+    label: "30-Day Plan",
+    sub: "Small actions that compound into better visibility",
+  },
 ];
 
-/* ── Page ─────────────────────────────────────────────────── */
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col">
-      <Nav subtitle="Reputation Intelligence" />
+    <main className="min-h-screen">
+      <Nav subtitle="Reputation Fixer" />
 
-      {/* ── Hero ─────────────────────────────────────────── */}
-      <section className="relative flex flex-col items-center justify-center px-6 py-28 text-center overflow-hidden dot-grid hero-glow">
-
-        {/* Ambient blobs */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: "radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,212,170,0.06) 0%, transparent 65%)",
-          }}
-        />
-
-        {/* Live badge */}
-        <div
-          className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono mb-8 fade-up"
-          style={{
-            background: "var(--accent-dim)",
-            color: "var(--accent)",
-            border: "1px solid var(--accent-glow)",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          5 Autonomous Agents · Real-Time Intelligence
-        </div>
-
-        {/* Headline */}
-        <h1
-          className="relative text-5xl md:text-7xl font-bold tracking-tight leading-[1.08] max-w-4xl mb-6 fade-up fade-up-1"
-          style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
-        >
-          Find out how recruiters
-          <br />
-          <span className="text-gradient">actually see you.</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p
-          className="relative text-base md:text-lg max-w-lg mb-10 leading-relaxed fade-up fade-up-2"
-          style={{ color: "var(--text-dim)" }}
-        >
-          Paste your GitHub username. 90 seconds later, you have your{" "}
-          <span style={{ color: "var(--text)", fontWeight: 500 }}>
-            Reputation Intelligence Report
-          </span>{" "}
-          — recruiter perception, visibility gaps, ready-to-post content.
-        </p>
-
-        {/* CTA group */}
-        <div className="relative flex flex-col sm:flex-row items-center gap-3 mb-14 fade-up fade-up-3">
-          <Link
-            href="/analyze"
-            className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-base transition-all duration-200 hover:scale-[1.03] hover:shadow-lg active:scale-100"
-            style={{
-              background: "var(--accent)",
-              color: "#07090d",
-              boxShadow: "0 0 24px var(--accent-glow)",
-            }}
-          >
-            Analyze My Profile
-            <span style={{ fontSize: "1.1em" }}>→</span>
-          </Link>
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Free · No account · 90 seconds
-          </span>
-        </div>
-
-        {/* Stats row */}
-        <div className="relative flex items-center gap-10 fade-up fade-up-4">
-          {STATS.map((s, i) => (
-            <div key={s.label} className="text-center">
-              {i > 0 && (
-                <div
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-8 hidden sm:block"
-                  style={{ background: "var(--border)" }}
-                />
-              )}
-              <div
-                className="text-2xl font-bold tabular-nums"
-                style={{ color: "var(--accent)" }}
-              >
-                {s.value}
-              </div>
-              <div className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-                {s.label}
-              </div>
+      <section className="hero-shell">
+        <div className="page-shell hero-grid">
+          <div className="hero-copy fade-up">
+            <div className="eyebrow">
+              <Zap size={14} />
+              6 autonomous agents · OpenAI Responses API · live web search
             </div>
-          ))}
-        </div>
-      </section>
 
-      {/* ── Preview card ─────────────────────────────────── */}
-      <section
-        className="border-t border-b px-6 py-16"
-        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-      >
-        <div className="max-w-3xl mx-auto">
-          <p
-            className="text-center text-xs uppercase tracking-widest font-mono mb-10"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Example output
-          </p>
+            <h1>Stop letting strong work look weak at recruiter speed.</h1>
 
-          <div
-            className="rounded-2xl p-6 glow-card"
-            style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <p className="hero-lede">
+              Paste your GitHub username, add a little context, and get a recruiter read plus the exact fixes to apply: better bio, better README, better repo framing, and better social proof.
+            </p>
+
+            <div className="hero-actions">
+              <Link href="/analyze" className="button-primary">
+                Build my fix kit
+                <ArrowRight size={18} />
+              </Link>
+              <span>Public GitHub only. No account. No LinkedIn scraping.</span>
+            </div>
+
+            <div className="stats-row" aria-label="Product stats">
+              {STATS.map((stat) => (
+                <div key={stat.label}>
+                  <strong>{stat.value}</strong>
+                  <span>{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="report-preview fade-up fade-up-2">
+            <div className="preview-header">
               <div>
-                <p className="text-xs font-mono uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)" }}>
-                  Reputation Intelligence Report · @alexdev
-                </p>
-                <p className="text-sm font-medium" style={{ color: "var(--text)" }}>
-                  Recruiter Perception Score
-                </p>
+                <p>Example fix kit</p>
+                <h2>@alexdev</h2>
               </div>
-              {/* Big score badge */}
-              <div
-                className="flex items-baseline gap-1"
-                style={{ color: "var(--yellow)" }}
-              >
-                <span className="text-4xl font-bold">43</span>
-                <span className="text-sm font-mono" style={{ color: "var(--text-muted)" }}>/100</span>
+              <div className="score-pill">
+                <strong>43</strong>
+                <span>/100</span>
               </div>
             </div>
 
-            {/* Bars */}
-            <div className="flex flex-col gap-3 mb-5">
-              {PREVIEW_BARS.map((bar) => (
-                <div key={bar.label}>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-xs" style={{ color: "var(--text-dim)" }}>
-                      {bar.label}
-                    </span>
-                    <span className="text-xs font-mono font-bold" style={{ color: bar.color }}>
-                      {bar.score}
-                    </span>
+            <div className="preview-body">
+              {[
+                { label: "GitHub Bio", score: 100, color: "var(--accent)" },
+                { label: "README Rewrite", score: 100, color: "var(--blue)" },
+                { label: "Repo Descriptions", score: 100, color: "var(--yellow)" },
+                { label: "Pinned Repo Plan", score: 100, color: "var(--green)" },
+                { label: "30-Day Actions", score: 100, color: "var(--orange)" },
+              ].map((bar) => (
+                <div className="score-row" key={bar.label}>
+                  <div>
+                    <span>{bar.label}</span>
+                    <strong style={{ color: bar.color }}>ready</strong>
                   </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-3)" }}>
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${bar.score}%`, background: bar.color, boxShadow: `0 0 6px ${bar.color}44` }}
+                  <div className="score-track">
+                    <span
+                      style={{
+                        width: `${bar.score}%`,
+                        background: bar.color,
+                        boxShadow: `0 0 16px ${bar.color}55`,
+                      }}
                     />
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Recruiter quote excerpt */}
-            <div
-              className="rounded-xl p-4"
-              style={{ background: "var(--surface-3)", border: "1px solid var(--border)" }}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ background: "var(--accent-dim)", color: "var(--accent)" }}
-                >
-                  M
-                </div>
-                <span className="text-xs font-medium" style={{ color: "var(--text-dim)" }}>
-                  Marcus Chen · Sr. Technical Recruiter
-                </span>
+            <div className="quote-card">
+              <div className="avatar">M</div>
+              <div>
+                <strong>Marcus Chen</strong>
+                <span>Senior technical recruiter</span>
+                <p>
+                  "There is real work here, but the profile still makes me do too much interpretation. The fixes are obvious once you package the proof better."
+                </p>
               </div>
-              <p className="text-xs leading-relaxed italic" style={{ color: "var(--text-muted)" }}>
-                &ldquo;Strong commit history, but 11 of 14 repositories have no description. I can&apos;t tell which projects are production-quality and which are tutorials. Without that context, I&apos;m spending extra time I don&apos;t have — and I&apos;ll move on.&rdquo;
-              </p>
-            </div>
-
-            {/* CTA overlay */}
-            <div className="text-center mt-5">
-              <Link
-                href="/analyze"
-                className="text-sm font-semibold transition-all hover:opacity-80"
-                style={{ color: "var(--accent)" }}
-              >
-                See yours → free analysis
-              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Pain points ──────────────────────────────────── */}
-      <section className="border-b px-6 py-20" style={{ borderColor: "var(--border)" }}>
-        <div className="max-w-5xl mx-auto">
-          <p
-            className="text-center text-xs uppercase tracking-widest font-mono mb-12"
-            style={{ color: "var(--text-muted)" }}
-          >
-            The invisible problem
-          </p>
-          <div className="grid md:grid-cols-3 gap-5">
-            {PAINS.map((p) => (
-              <div
-                key={p.title}
-                className="rounded-xl p-6 card-hover"
-                style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-              >
-                <div className="text-2xl mb-4" style={{ color: "var(--accent)" }}>
-                  {p.icon}
-                </div>
-                <h3 className="font-semibold text-sm mb-1" style={{ color: "var(--text)" }}>
-                  {p.title}
-                </h3>
-                <p
-                  className="text-sm font-semibold mb-3"
-                  style={{ color: "var(--text-dim)" }}
-                >
-                  {p.sub}
-                </p>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                  {p.detail}
-                </p>
+      <section className="section-band">
+        <div className="page-shell">
+          <div className="section-heading">
+            <p>What you get</p>
+            <h2>Not just a score. A fix kit you can apply today.</h2>
+          </div>
+
+          <div className="outcome-grid">
+            {OUTCOMES.map(({ Icon, label, sub }) => (
+              <div className="outcome-card" key={label}>
+                <Icon size={22} />
+                <strong>{label}</strong>
+                <span>{sub}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Agent pipeline ───────────────────────────────── */}
-      <section
-        className="border-b px-6 py-20"
-        style={{ borderColor: "var(--border)", background: "var(--surface)" }}
-      >
-        <div className="max-w-2xl mx-auto">
-          <p
-            className="text-center text-xs uppercase tracking-widest font-mono mb-12"
-            style={{ color: "var(--text-muted)" }}
-          >
-            5-agent autonomous pipeline
-          </p>
+      <section className="section-band section-muted">
+        <div className="page-shell">
+          <div className="section-heading align-left">
+            <p>The invisible problem</p>
+            <h2>Strong engineering work still loses if the profile packaging is weak.</h2>
+          </div>
 
-          <div className="relative flex flex-col gap-0">
-            {/* Connector line */}
-            <div
-              className="absolute left-[22px] top-6 bottom-6 w-px"
-              style={{ background: "var(--border)" }}
-            />
+          <div className="pain-grid">
+            {PAINS.map((pain) => (
+              <article className="pain-card" key={pain.num}>
+                <span style={{ color: pain.color }}>{pain.num}</span>
+                <h3>{pain.title}</h3>
+                <strong style={{ color: pain.color }}>{pain.punch}</strong>
+                <p>{pain.detail}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            {AGENTS.map((a, i) => (
-              <div key={a.n} className="flex gap-4 items-start py-4 relative">
-                {/* Node */}
-                <div
-                  className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 z-10 font-bold text-sm"
-                  style={{
-                    background: i === 1 ? "var(--accent-dim)" : "var(--surface-2)",
-                    border: `1px solid ${i === 1 ? "var(--accent-glow)" : "var(--border)"}`,
-                    color: i === 1 ? "var(--accent)" : "var(--text-muted)",
-                  }}
-                >
-                  {a.icon}
+      <section className="section-band">
+        <div className="page-shell pipeline-layout">
+          <div className="section-heading align-left">
+            <p>How it works</p>
+            <h2>One pipeline turns raw GitHub evidence into clearer recruiter signal.</h2>
+          </div>
+
+          <div className="pipeline-list">
+            {AGENTS.map(({ Icon, n, title, desc, active }) => (
+              <div className={active ? "agent-step active" : "agent-step"} key={n}>
+                <div className="agent-icon">
+                  <Icon size={20} />
                 </div>
-                <div className="flex-1 pt-2.5">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
-                      {a.n}
-                    </span>
-                    <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-                      {a.title} Agent
-                    </span>
-                    {i === 1 && (
-                      <span
-                        className="text-xs px-1.5 py-0.5 rounded font-mono"
-                        style={{ background: "var(--accent-dim)", color: "var(--accent)" }}
-                      >
-                        streaming
-                      </span>
-                    )}
+                <div>
+                  <div className="agent-title">
+                    <span>{n}</span>
+                    <h3>{title}</h3>
+                    {active && <em>streaming</em>}
                   </div>
-                  <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-                    {a.desc}
-                  </p>
+                  <p>{desc}</p>
                 </div>
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          <div className="text-center mt-10">
-            <Link
-              href="/analyze"
-              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-base transition-all hover:scale-[1.03]"
-              style={{
-                background: "var(--accent)",
-                color: "#07090d",
-                boxShadow: "0 0 20px var(--accent-glow)",
-              }}
-            >
-              Run the pipeline on my profile →
+      <section className="section-band section-muted">
+        <div className="page-shell">
+          <div className="section-heading align-left">
+            <p>Built for one type of person</p>
+            <h2>The developer who ships real work but gets zero recruiter responses.</h2>
+          </div>
+
+          <div className="pain-grid">
+            <article className="pain-card">
+              <span style={{ color: "var(--accent)" }}>Who</span>
+              <h3>Developer, 1–5 years experience</h3>
+              <strong style={{ color: "var(--accent)" }}>Actively job searching or freelancing</strong>
+              <p>Has 3–20 public GitHub repos, strong technical output, but profile packaging is losing them opportunities they deserve.</p>
+            </article>
+            <article className="pain-card">
+              <span style={{ color: "var(--blue)" }}>Problem</span>
+              <h3>4+ hours to do this manually</h3>
+              <strong style={{ color: "var(--blue)" }}>Most developers skip it entirely</strong>
+              <p>Writing a README, bio, repo descriptions, LinkedIn post, and X thread from scratch takes a full workday — so it never gets done.</p>
+            </article>
+            <article className="pain-card">
+              <span style={{ color: "var(--green)" }}>What they get</span>
+              <h3>All of it in 90 seconds</h3>
+              <strong style={{ color: "var(--green)" }}>Zero writing. One click to publish.</strong>
+              <p>6 agents run, the README pushes directly to GitHub, and live opportunities surface — all with no human steps in between.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="final-cta">
+        <div className="page-shell">
+          <div className="cta-panel">
+            <BadgeCheck size={28} />
+            <h2>Your stronger profile is one pass away.</h2>
+            <p>
+              Get the recruiter read, apply the fixes, and walk away with better profile copy and clearer public proof.
+            </p>
+            <Link href="/analyze" className="button-primary">
+              Start free analysis
+              <ArrowRight size={18} />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────── */}
-      <footer
-        className="px-8 py-5 flex items-center justify-between"
-        style={{ borderTop: "1px solid var(--border)" }}
-      >
-        <div className="flex items-center gap-2">
-          <div
-            className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold"
-            style={{ background: "var(--accent)", color: "#07090d" }}
-          >
-            L
-          </div>
-          <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>
-            LeverageOS
-          </span>
+      <footer className="site-footer">
+        <div className="page-shell">
+          <span>LeverageOS</span>
+          <span>Reputation fixer for developers</span>
         </div>
-        <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-          Reputation Intelligence · Autonomous AI · Hackathon build
-        </p>
       </footer>
     </main>
   );

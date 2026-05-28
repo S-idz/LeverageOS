@@ -1,22 +1,25 @@
 // ============================================================
-// LeverageOS — Analysis Orchestrator
+// LeverageOS - Analysis Orchestrator
 // Sequences all 5 agents and emits live job updates
 // ============================================================
 
 import { v4 as uuidv4 } from "uuid";
 import { AnalysisResult, AnalyzeRequest } from "./types";
 import { fetchGitHubData } from "./github";
-import { runRecruiterSimulation } from "./agents/recruiter";
+import {
+  buildFallbackRecruiterNarrative,
+  runRecruiterSimulation,
+} from "./agents/recruiter";
 import { runVisibilityGapAnalysis } from "./agents/gaps";
-import { runContentGeneration } from "./agents/content";
-import { runScoringAgent } from "./agents/scoring";
-import { createJob, updateJob, updateAgent, getJob } from "./jobStore";
+import { runFixKitGeneration } from "./agents/content";
+import { buildFallbackScores, runScoringAgent } from "./agents/scoring";
+import { runOpportunityScout } from "./agents/opportunities";
+import { createJob, getJob, updateAgent, updateJob } from "./jobStore";
 
 export async function startAnalysis(request: AnalyzeRequest): Promise<string> {
   const jobId = uuidv4();
   createJob(jobId);
 
-  // Run in background — do not await
   runPipeline(jobId, request).catch((err) => {
     console.error(`Job ${jobId} pipeline error:`, err);
     updateJob(jobId, {
@@ -29,12 +32,12 @@ export async function startAnalysis(request: AnalyzeRequest): Promise<string> {
 }
 
 async function runPipeline(jobId: string, request: AnalyzeRequest): Promise<void> {
+  console.log(`[pipeline:${jobId}] starting for @${request.githubUsername}`);
   updateJob(jobId, { status: "running" });
 
-  // ── AGENT 1: Profile Ingestion ──────────────────────────
   updateAgent(jobId, "Profile Ingestion", {
     status: "running",
-    message: `Connecting to GitHub API...`,
+    message: "Connecting to GitHub API...",
   });
 
   await sleep(400);
@@ -48,11 +51,13 @@ async function runPipeline(jobId: string, request: AnalyzeRequest): Promise<void
     profileData = await fetchGitHubData(
       request.githubUsername,
       request.selfDescription,
-      request.linkedinUrl
+      request.targetRole
     );
+    console.log(`[pipeline:${jobId}] github ok — ${profileData.repos.length} repos, ${profileData.activity.totalStars} stars`);
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to fetch GitHub profile";
+    console.error(`[pipeline:${jobId}] profile ingestion failed:`, err);
     updateAgent(jobId, "Profile Ingestion", { status: "error", message });
     updateJob(jobId, { status: "error", error: message });
     return;
@@ -60,49 +65,69 @@ async function runPipeline(jobId: string, request: AnalyzeRequest): Promise<void
 
   updateAgent(jobId, "Profile Ingestion", {
     status: "complete",
-    message: `${profileData.repos.length} repos · ${profileData.activity.primaryLanguages.join(", ")} · ${profileData.activity.totalStars} stars`,
+    message: `${profileData.repos.length} repos | ${
+      profileData.activity.primaryLanguages.join(", ") || "mixed stack"
+    } | ${profileData.activity.totalStars} stars`,
   });
 
   await sleep(300);
 
-  // ── AGENT 2: Recruiter Simulation ───────────────────────
   updateAgent(jobId, "Recruiter Simulation", {
     status: "running",
     message: "Marcus Chen is reviewing your profile...",
     streamText: "",
   });
 
+  console.log(`[pipeline:${jobId}] starting recruiter simulation`);
   let recruiterNarrative = "";
   try {
-    recruiterNarrative = await runRecruiterSimulation(
-      profileData,
-      (chunk) => {
-        const currentJob = getJob(jobId);
-        if (!currentJob) return;
-        const currentText = currentJob.agents["Recruiter Simulation"]?.streamText ?? "";
-        updateAgent(jobId, "Recruiter Simulation", {
-          streamText: currentText + chunk,
-          message: "Recruiter perspective loading...",
-        });
-      }
-    );
-  } catch (err) {
-    updateAgent(jobId, "Recruiter Simulation", {
-      status: "error",
-      message: "Failed to generate recruiter perspective",
+    recruiterNarrative = await runRecruiterSimulation(profileData, (chunk) => {
+      const currentJob = getJob(jobId);
+      if (!currentJob) return;
+      const currentText =
+        currentJob.agents["Recruiter Simulation"]?.streamText ?? "";
+      updateAgent(jobId, "Recruiter Simulation", {
+        streamText: currentText + chunk,
+        message: "Recruiter perspective loading...",
+      });
     });
-    throw err;
+  } catch (err) {
+    console.error(`[pipeline:${jobId}] recruiter simulation failed (using fallback):`, err instanceof Error ? err.message : err);
+    const fallbackNarrative = buildFallbackRecruiterNarrative(profileData);
+    recruiterNarrative = fallbackNarrative;
+    for (const chunk of chunkText(fallbackNarrative, 90)) {
+      const currentJob = getJob(jobId);
+      if (!currentJob) break;
+      const currentText =
+        currentJob.agents["Recruiter Simulation"]?.streamText ?? "";
+      updateAgent(jobId, "Recruiter Simulation", {
+        streamText: currentText + chunk,
+        message: "OpenAI unavailable - using evidence-backed fallback assessment...",
+      });
+      await sleep(18);
+    }
+
+    updateAgent(jobId, "Recruiter Simulation", {
+      status: "complete",
+      message:
+        err instanceof Error
+          ? `Fallback recruiter perspective used: ${err.message}`
+          : "Fallback recruiter perspective used",
+      streamText: fallbackNarrative,
+    });
   }
 
-  updateAgent(jobId, "Recruiter Simulation", {
-    status: "complete",
-    message: "Recruiter assessment complete",
-    streamText: recruiterNarrative,
-  });
+  if (recruiterNarrative) {
+    updateAgent(jobId, "Recruiter Simulation", {
+      status: "complete",
+      message: "Recruiter assessment complete",
+      streamText: recruiterNarrative,
+    });
+  }
 
   await sleep(300);
 
-  // ── AGENT 3: Visibility Gap Analysis ────────────────────
+  console.log(`[pipeline:${jobId}] starting visibility gap analysis`);
   updateAgent(jobId, "Visibility Gap Analysis", {
     status: "running",
     message: "Scanning profile for missing visibility signals...",
@@ -111,70 +136,100 @@ async function runPipeline(jobId: string, request: AnalyzeRequest): Promise<void
   await sleep(500);
 
   updateAgent(jobId, "Visibility Gap Analysis", {
-    message: "Analyzing repos, activity, discoverability, communication...",
+    message: "Analyzing repos, activity, discoverability, and narrative clarity...",
   });
 
   const gaps = await runVisibilityGapAnalysis(profileData, recruiterNarrative);
-
-  const criticalCount = gaps.filter((g) => g.impact === "critical").length;
-  const highCount = gaps.filter((g) => g.impact === "high").length;
+  const criticalCount = gaps.filter((gap) => gap.impact === "critical").length;
+  const highCount = gaps.filter((gap) => gap.impact === "high").length;
+  console.log(`[pipeline:${jobId}] gaps: ${gaps.length} total, ${criticalCount} critical, ${highCount} high`);
 
   updateAgent(jobId, "Visibility Gap Analysis", {
     status: "complete",
-    message: `${gaps.length} gaps found · ${criticalCount} critical · ${highCount} high`,
+    message: `${gaps.length} gaps found | ${criticalCount} critical | ${highCount} high`,
   });
 
   await sleep(300);
 
-  // ── AGENT 4: Content Generation ─────────────────────────
-  updateAgent(jobId, "Content Generation", {
+  console.log(`[pipeline:${jobId}] starting fix kit generation`);
+  updateAgent(jobId, "Fix Kit Generation", {
     status: "running",
-    message: "Drafting LinkedIn post, X thread, GitHub README in parallel...",
+    message: "Building your Fix Now kit: bio, README, repo copy, and social proof...",
   });
 
   await sleep(400);
 
-  const generatedContent = await runContentGeneration(profileData, gaps);
+  const fixKit = await runFixKitGeneration(profileData, gaps);
+  console.log(`[pipeline:${jobId}] fix kit ready`);
 
-  updateAgent(jobId, "Content Generation", {
+  updateAgent(jobId, "Fix Kit Generation", {
     status: "complete",
-    message: "3 content pieces ready · LinkedIn · X Thread · GitHub README",
+    message: "Fix kit ready | GitHub bio | README | repo descriptions | LinkedIn | X",
   });
 
   await sleep(300);
 
-  // ── AGENT 5: Reputation Scoring ─────────────────────────
+  console.log(`[pipeline:${jobId}] starting reputation scoring`);
   updateAgent(jobId, "Reputation Scoring", {
     status: "running",
-    message: "Scoring across 5 dimensions: credibility, clarity, consistency...",
+    message: "Scoring credibility, clarity, consistency, discoverability, and completeness...",
   });
 
   await sleep(400);
 
-  const { scores, opportunitySignals } = await runScoringAgent(
-    profileData,
-    recruiterNarrative,
-    gaps
-  );
+  let scoringResult;
+  try {
+    scoringResult = await runScoringAgent(profileData, recruiterNarrative, gaps);
+    console.log(`[pipeline:${jobId}] scoring done — overall ${scoringResult.scores.overall}/100`);
+  } catch (err) {
+    console.error(`[pipeline:${jobId}] scoring failed (using fallback):`, err instanceof Error ? err.message : err);
+    scoringResult = buildFallbackScores(profileData, gaps);
+  }
 
   updateAgent(jobId, "Reputation Scoring", {
     status: "complete",
-    message: `Overall: ${scores.overall}/100 · Technical: ${scores.technicalCredibility} · Clarity: ${scores.communicationClarity}`,
+    message: `Overall: ${scoringResult.scores.overall}/100 | Technical: ${scoringResult.scores.technicalCredibility} | Clarity: ${scoringResult.scores.communicationClarity}`,
   });
 
   await sleep(300);
 
-  // ── Assemble Result ─────────────────────────────────────
+  console.log(`[pipeline:${jobId}] starting opportunity scout`);
+  updateAgent(jobId, "Opportunity Scout", {
+    status: "running",
+    message: "Searching the web for live opportunities matching your stack...",
+  });
+
+  let opportunities: import("./types").OpportunityResult[] = [];
+  try {
+    opportunities = await runOpportunityScout(profileData, scoringResult.scores);
+    console.log(`[pipeline:${jobId}] opportunity scout done — ${opportunities.length} results`);
+    updateAgent(jobId, "Opportunity Scout", {
+      status: "complete",
+      message: `${opportunities.length} live opportunities found matching your profile`,
+    });
+  } catch (err) {
+    console.error(`[pipeline:${jobId}] opportunity scout failed (using fallback):`, err instanceof Error ? err.message : err);
+    updateAgent(jobId, "Opportunity Scout", {
+      status: "complete",
+      message: "Curated opportunities ready",
+    });
+  }
+
+  await sleep(200);
+
+  console.log(`[pipeline:${jobId}] pipeline complete`);
   const result: AnalysisResult = {
     id: uuidv4(),
     createdAt: new Date().toISOString(),
     githubUsername: request.githubUsername,
     profileData,
+    profileEvidence: profileData.profileEvidence,
     recruiterNarrative,
     visibilityGaps: gaps,
-    generatedContent,
-    scores,
-    opportunitySignals,
+    fixKit,
+    scores: scoringResult.scores,
+    opportunitySignals: scoringResult.opportunitySignals,
+    opportunities,
   };
 
   updateJob(jobId, { status: "complete", result });
@@ -182,4 +237,12 @@ async function runPipeline(jobId: string, request: AnalyzeRequest): Promise<void
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function chunkText(text: string, chunkSize: number): string[] {
+  const chunks: string[] = [];
+  for (let index = 0; index < text.length; index += chunkSize) {
+    chunks.push(text.slice(index, index + chunkSize));
+  }
+  return chunks;
 }
