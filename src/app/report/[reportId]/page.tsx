@@ -277,8 +277,9 @@ Try it: leverageos.vercel.app`;
             </p>
             <div className="flex flex-wrap gap-4">
               <div
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-help"
                 style={{ background: "rgba(6,214,160,0.08)", border: "1px solid rgba(6,214,160,0.2)" }}
+                title="Median pipeline run is ~90s end-to-end vs ~4h to write a bio, README, repo descriptions, LinkedIn copy, X thread, and resume bullets by hand."
               >
                 <span className="text-lg font-extrabold" style={{ color: "var(--green)" }}>
                   90s
@@ -288,11 +289,12 @@ Try it: leverageos.vercel.app`;
                 </span>
               </div>
               <div
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-help"
                 style={{
                   background: urgentCount > 2 ? "rgba(255,149,51,0.08)" : "rgba(251,191,36,0.08)",
                   border: `1px solid ${urgentCount > 2 ? "rgba(255,149,51,0.2)" : "rgba(251,191,36,0.2)"}`,
                 }}
+                title={`${criticalCount} critical + ${highCount} high-impact gaps detected by the Visibility Gap Analysis agent.`}
               >
                 <span
                   className="text-lg font-extrabold"
@@ -305,8 +307,9 @@ Try it: leverageos.vercel.app`;
                 </span>
               </div>
               <div
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-help"
                 style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}
+                title={`Estimate derived from headroom on your overall reputation score (currently ${scores.overall}/100). Applying the Fix Kit closes the gap between your packaging and your underlying technical evidence.`}
               >
                 <span className="text-lg font-extrabold" style={{ color: "var(--blue)" }}>
                   +{potentialReach}x

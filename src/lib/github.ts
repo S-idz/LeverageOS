@@ -11,6 +11,7 @@ import {
   ProfileEvidence,
 } from "./types";
 import { getOptionalEnv } from "./env";
+import { assertValidGitHubUsername } from "./validation";
 
 const GITHUB_API = "https://api.github.com";
 
@@ -66,12 +67,19 @@ async function githubFetch(path: string, withAuth = true): Promise<any> {
     const remaining = res.headers.get("X-RateLimit-Remaining");
     const resetEpoch = res.headers.get("X-RateLimit-Reset");
     const resetAt = resetEpoch ? new Date(Number(resetEpoch) * 1000).toLocaleTimeString() : "soon";
+    const hasToken = Boolean(getOptionalEnv("GITHUB_TOKEN"));
     if (remaining === "0") {
       throw new Error(
-        `GitHub API rate limit exceeded (resets at ${resetAt}). Add GITHUB_TOKEN to .env.local to raise the limit to 5000 req/hr.`
+        hasToken
+          ? `GitHub API rate limit exceeded for the configured GITHUB_TOKEN (resets at ${resetAt}).`
+          : `GitHub API rate limit exceeded (resets at ${resetAt}). You are running unauthenticated — add GITHUB_TOKEN to .env.local to raise the limit from 60/hr to 5000/hr.`
       );
     }
-    throw new Error("GitHub API access forbidden. Check your GITHUB_TOKEN in .env.local.");
+    throw new Error(
+      hasToken
+        ? "GitHub API access forbidden. The GITHUB_TOKEN in .env.local may be invalid or expired."
+        : "GitHub API access forbidden. Add GITHUB_TOKEN to .env.local."
+    );
   }
   if (!res.ok) {
     console.error(`[github] unexpected status ${res.status} for ${path}`);
@@ -86,16 +94,18 @@ export async function fetchGitHubData(
   selfDescription: string,
   targetRole?: string
 ): Promise<ProfileData> {
-  console.log(`[github] fetching profile for @${username}`);
+  const safeUsername = assertValidGitHubUsername(username);
+
+  console.log(`[github] fetching profile for @${safeUsername}`);
   const [userRaw, reposRaw, eventsRaw] = await Promise.allSettled([
-    githubFetch(`/users/${username}`),
-    githubFetch(`/users/${username}/repos?sort=updated&per_page=30`),
-    githubFetch(`/users/${username}/events/public?per_page=50`),
+    githubFetch(`/users/${safeUsername}`),
+    githubFetch(`/users/${safeUsername}/repos?sort=updated&per_page=30`),
+    githubFetch(`/users/${safeUsername}/events/public?per_page=50`),
   ]);
 
   if (userRaw.status === "rejected") {
     const reason = userRaw.reason instanceof Error ? userRaw.reason.message : "Failed to fetch GitHub profile";
-    console.error(`[github] user fetch failed for @${username}:`, reason);
+    console.error(`[github] user fetch failed for @${safeUsername}:`, reason);
     throw new Error(reason);
   }
 
@@ -126,10 +136,10 @@ export async function fetchGitHubData(
     eventsRaw.status === "fulfilled" ? eventsRaw.value : [],
     repos
   );
-  const hasReadme = await checkProfileReadme(username);
+  const hasReadme = await checkProfileReadme(safeUsername);
 
   const profile: GitHubProfile = {
-    username,
+    username: safeUsername,
     name: user.name ?? null,
     bio: user.bio ?? null,
     company: user.company ?? null,
@@ -157,8 +167,10 @@ export async function fetchGitHubData(
 }
 
 async function checkProfileReadme(username: string): Promise<boolean> {
+  const safeUsername = assertValidGitHubUsername(username);
+
   try {
-    const res = await fetch(`${GITHUB_API}/repos/${username}/${username}/readme`, {
+    const res = await fetch(`${GITHUB_API}/repos/${safeUsername}/${safeUsername}/readme`, {
       headers: getHeaders(),
       cache: "no-store",
     });

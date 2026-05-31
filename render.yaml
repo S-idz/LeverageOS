@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: leverageos
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: USE_WEB_SEARCH
+        sync: false

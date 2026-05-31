@@ -99,11 +99,15 @@ export function getJob(id: string): Job | undefined {
   return jobStore.get(id);
 }
 
-// Clean up old jobs (older than 1 hour)
+// Keep completed jobs for 24h so the Auto-Apply route can still find
+// the generated README. Active/errored jobs evict after 1h.
 export function cleanupJobs(): void {
-  const oneHourAgo = Date.now() - 3_600_000;
+  const now = Date.now();
+  const activeCutoff = now - 3_600_000;
+  const completedCutoff = now - 86_400_000;
   for (const [id, job] of jobStore.entries()) {
-    if (job.createdAt < oneHourAgo) {
+    const cutoff = job.status === "complete" ? completedCutoff : activeCutoff;
+    if (job.createdAt < cutoff) {
       jobStore.delete(id);
       jobListeners.delete(id);
     }

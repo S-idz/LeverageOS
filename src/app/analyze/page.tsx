@@ -30,6 +30,11 @@ const WHAT_YOU_GET = [
     label: "30-Day Plan",
     detail: "Small follow-through actions so the cleanup compounds",
   },
+  {
+    icon: "06",
+    label: "Live Opportunities",
+    detail: "Jobs, hackathons, OSS issues, and grants matched to your stack",
+  },
 ];
 
 function Field({ children }: { children: React.ReactNode }) {
@@ -90,6 +95,15 @@ export default function AnalyzePage() {
 
   const canSubmit =
     githubUsername.trim().length > 0 && selfDescription.trim().length > 10;
+
+  function loadDemoProfile() {
+    setGithubUsername("octocat");
+    setSelfDescription(
+      "I work on developer tooling and shipped a handful of small open-source projects. I want to be seen as a pragmatic engineer who can take an idea from prototype to production."
+    );
+    setTargetRole("Full-Stack Engineer");
+    setError("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,7 +170,7 @@ export default function AnalyzePage() {
           </div>
 
           <div className="flex items-center gap-2 mb-8 fade-up fade-up-1">
-            {["Enter details", "5 agents run", "Apply fixes"].map((step, i) => (
+            {["Enter details", "6 agents run", "Apply fixes"].map((step, i) => (
               <div key={step} className="flex items-center gap-2">
                 {i > 0 && (
                   <div className="w-8 h-px" style={{ background: "var(--border)" }} />
@@ -192,6 +206,21 @@ export default function AnalyzePage() {
             }}
           >
             <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+              <div className="flex justify-end -mb-2">
+                <button
+                  type="button"
+                  onClick={loadDemoProfile}
+                  className="text-xs font-mono px-3 py-1.5 rounded-full transition-all cursor-pointer hover:opacity-80"
+                  style={{
+                    background: "var(--surface-2)",
+                    color: "var(--accent)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  Try with example profile →
+                </button>
+              </div>
+
               <Field>
                 <Label required>GitHub Username</Label>
                 <div className="relative">
@@ -291,7 +320,7 @@ export default function AnalyzePage() {
                 {loading ? (
                   <span className="flex items-center justify-center gap-2.5">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Launching 5 agents...
+                    Launching 6 agents...
                   </span>
                 ) : (
                   "Analyze and build my fix kit ->"

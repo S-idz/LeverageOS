@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { jobStore } from "@/lib/jobStore";
+import { assertValidGitHubUsername } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -52,6 +53,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Report not found or expired" }, { status: 404 });
   }
 
+  const safeUsername = assertValidGitHubUsername(username);
+
   const headers: HeadersInit = {
     Authorization: `token ${githubToken}`,
     Accept: "application/vnd.github+json",
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
   let existingSha: string | undefined;
   try {
     const checkRes = await fetch(
-      `https://api.github.com/repos/${username}/${username}/contents/README.md`,
+      `https://api.github.com/repos/${safeUsername}/${safeUsername}/contents/README.md`,
       { headers }
     );
     if (checkRes.ok) {
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
   }
 
   const putRes = await fetch(
-    `https://api.github.com/repos/${username}/${username}/contents/README.md`,
+    `https://api.github.com/repos/${safeUsername}/${safeUsername}/contents/README.md`,
     { method: "PUT", headers, body: JSON.stringify(putBody) }
   );
 
@@ -99,7 +102,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    url: `https://github.com/${username}`,
+    url: `https://github.com/${safeUsername}`,
     message: existingSha ? "README updated" : "README created",
   });
 }

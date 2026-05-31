@@ -5,28 +5,42 @@ export class MissingEnvironmentVariableError extends Error {
   }
 }
 
+export class InvalidProviderKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidProviderKeyError";
+  }
+}
+
 export function getRequiredEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
     throw new MissingEnvironmentVariableError(name);
   }
-
-  // Warn when the key format looks wrong for the configured provider
-  if (name === "OPENAI_API_KEY") {
-    const base = process.env.OPENAI_BASE_URL ?? "";
-    const isGroq = base.length > 0 && !base.includes("api.openai.com");
-    if (isGroq && !value.startsWith("gsk_")) {
-      console.warn(
-        `[env] OPENAI_API_KEY does not start with "gsk_" but OPENAI_BASE_URL points to Groq. ` +
-        `Groq API keys should start with "gsk_". API calls will fail with 401 until this is corrected.`
-      );
-    }
-  }
-
   return value;
 }
 
 export function getOptionalEnv(name: string): string | undefined {
   const value = process.env[name]?.trim();
   return value || undefined;
+}
+
+// Validate provider config before a job starts so the user gets one clear,
+// actionable error instead of every agent silently falling back.
+export function assertProviderConfig(): void {
+  const apiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
+  const base = process.env.OPENAI_BASE_URL?.trim() ?? "";
+
+  if (!apiKey) {
+    throw new MissingEnvironmentVariableError("OPENAI_API_KEY");
+  }
+
+  const isGroq = base.length > 0 && !base.includes("api.openai.com");
+  if (isGroq && !apiKey.startsWith("gsk_")) {
+    throw new InvalidProviderKeyError(
+      `OPENAI_API_KEY is configured for Groq (OPENAI_BASE_URL=${base}) but the key does not start with "gsk_". ` +
+        `All LLM calls would return 401 and the report would silently degrade to deterministic fallbacks. ` +
+        `Fix the key in .env.local before re-running.`
+    );
+  }
 }

@@ -1,10 +1,10 @@
 // ============================================================
 // LeverageOS - Analysis Orchestrator
-// Sequences all 5 agents and emits live job updates
+// Sequences all 6 agents and emits live job updates
 // ============================================================
 
 import { v4 as uuidv4 } from "uuid";
-import { AnalysisResult, AnalyzeRequest } from "./types";
+import { AgentName, AnalysisResult, AnalyzeRequest, Job } from "./types";
 import { fetchGitHubData } from "./github";
 import {
   buildFallbackRecruiterNarrative,
@@ -15,9 +15,52 @@ import { runFixKitGeneration } from "./agents/content";
 import { buildFallbackScores, runScoringAgent } from "./agents/scoring";
 import { runOpportunityScout } from "./agents/opportunities";
 import { createJob, getJob, updateAgent, updateJob } from "./jobStore";
+import { assertProviderConfig } from "./env";
+import {
+  buildAnalysisCacheKey,
+  getCachedAnalysisResult,
+  setCachedAnalysisResult,
+} from "./resultCache";
 
-export async function startAnalysis(request: AnalyzeRequest): Promise<string> {
+interface StartAnalysisOptions {
+  bypassCache?: boolean;
+}
+
+export async function startAnalysis(
+  request: AnalyzeRequest,
+  options: StartAnalysisOptions = {}
+): Promise<string> {
   const jobId = uuidv4();
+
+  const cacheKey = buildAnalysisCacheKey(
+    request.githubUsername,
+    request.targetRole
+  );
+
+  if (options.bypassCache) {
+    console.log(`[cache] bypass ${cacheKey}`);
+  } else {
+    const cachedResult = getCachedAnalysisResult(
+      request.githubUsername,
+      request.targetRole
+    );
+
+    if (cachedResult) {
+      console.log(`[cache] hit ${cacheKey}`);
+      createJob(jobId);
+      updateJob(jobId, {
+        status: "complete",
+        result: cachedResult,
+        currentStreamText: cachedResult.recruiterNarrative,
+        agents: buildCompletedAgentsFromCache(cachedResult),
+      });
+      return jobId;
+    }
+
+    console.log(`[cache] miss ${cacheKey}`);
+  }
+
+  assertProviderConfig();
   createJob(jobId);
 
   runPipeline(jobId, request).catch((err) => {
@@ -232,6 +275,8 @@ async function runPipeline(jobId: string, request: AnalyzeRequest): Promise<void
     opportunities,
   };
 
+  setCachedAnalysisResult(request.githubUsername, request.targetRole, result);
+  console.log(`[cache] stored ${buildAnalysisCacheKey(request.githubUsername, request.targetRole)}`);
   updateJob(jobId, { status: "complete", result });
 }
 
@@ -245,4 +290,33 @@ function chunkText(text: string, chunkSize: number): string[] {
     chunks.push(text.slice(index, index + chunkSize));
   }
   return chunks;
+}
+
+function buildCompletedAgentsFromCache(result: AnalysisResult): Job["agents"] {
+  const completedAgents = {} as Job["agents"];
+
+  const agentMessages: Record<AgentName, string> = {
+    "Profile Ingestion": "Profile data restored from 24h cache",
+    "Recruiter Simulation": "Recruiter narrative restored from 24h cache",
+    "Visibility Gap Analysis": `${result.visibilityGaps.length} cached gaps restored`,
+    "Fix Kit Generation": "Fix kit restored from 24h cache",
+    "Reputation Scoring": `Overall: ${result.scores.overall}/100`,
+    "Opportunity Scout": `${result.opportunities.length} cached opportunities restored`,
+  };
+
+  for (const [agentName, message] of Object.entries(agentMessages) as Array<
+    [AgentName, string]
+  >) {
+    completedAgents[agentName] = {
+      agent: agentName,
+      status: "complete",
+      message,
+      streamText:
+        agentName === "Recruiter Simulation"
+          ? result.recruiterNarrative
+          : undefined,
+    };
+  }
+
+  return completedAgents;
 }
