@@ -21,10 +21,25 @@ const SUBSCORES: { label: string; key: keyof PerceptionScores }[] = [
 ];
 
 function scoreLabel(score: number): { text: string; color: string } {
-  if (score >= 70) return { text: "Strong profile - minor gaps remain", color: "var(--green)" };
-  if (score >= 55) return { text: "Moderate - high leverage fixes available", color: "var(--yellow)" };
-  if (score >= 40) return { text: "Below average - packaging is holding you back", color: "var(--orange)" };
-  return { text: "Critical - most recruiters will skip this profile", color: "var(--red)" };
+  if (score >= 70) {
+    return { text: "Strong profile - minor gaps remain", color: "var(--green)" };
+  }
+  if (score >= 55) {
+    return {
+      text: "Moderate - high leverage fixes available",
+      color: "var(--yellow)",
+    };
+  }
+  if (score >= 40) {
+    return {
+      text: "Below average - packaging is holding you back",
+      color: "var(--orange)",
+    };
+  }
+  return {
+    text: "Critical - most recruiters will skip this profile",
+    color: "var(--red)",
+  };
 }
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -38,9 +53,44 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AccordionSection({
+  title,
+  subtitle,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="rounded-2xl overflow-hidden"
+      style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+    >
+      <summary
+        className="cursor-pointer px-5 py-4"
+        style={{ background: "var(--surface-2)", color: "var(--text)" }}
+      >
+        <p className="text-sm font-bold">{title}</p>
+        {subtitle && (
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            {subtitle}
+          </p>
+        )}
+      </summary>
+      <div className="p-5">{children}</div>
+    </details>
+  );
+}
+
 function PushReadmeButton({ reportId }: { reportId: string }) {
   const [token, setToken] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">(
+    "idle"
+  );
   const [message, setMessage] = useState("");
   const [profileUrl, setProfileUrl] = useState("");
 
@@ -54,7 +104,12 @@ function PushReadmeButton({ reportId }: { reportId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reportId, githubToken: token }),
       });
-      const data = (await res.json()) as { success?: boolean; url?: string; message?: string; error?: string };
+      const data = (await res.json()) as {
+        success?: boolean;
+        url?: string;
+        message?: string;
+        error?: string;
+      };
       if (!res.ok) {
         setStatus("error");
         setMessage(data.error ?? "Failed to push README");
@@ -65,7 +120,7 @@ function PushReadmeButton({ reportId }: { reportId: string }) {
       }
     } catch {
       setStatus("error");
-      setMessage("Network error — check your token and try again");
+      setMessage("Network error - check your token and try again");
     }
   }
 
@@ -73,19 +128,26 @@ function PushReadmeButton({ reportId }: { reportId: string }) {
     return (
       <div
         className="rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap"
-        style={{ background: "rgba(6,214,160,0.08)", border: "1px solid rgba(6,214,160,0.25)" }}
+        style={{
+          background: "rgba(6,214,160,0.08)",
+          border: "1px solid rgba(6,214,160,0.25)",
+        }}
       >
         <p className="text-sm font-semibold" style={{ color: "var(--green)" }}>
-          {message} — your profile README is live
+          {message} - your profile README is live
         </p>
         <a
           href={profileUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs px-3 py-1.5 rounded-lg font-semibold"
-          style={{ background: "rgba(6,214,160,0.15)", color: "var(--green)", border: "1px solid rgba(6,214,160,0.3)" }}
+          style={{
+            background: "rgba(6,214,160,0.15)",
+            color: "var(--green)",
+            border: "1px solid rgba(6,214,160,0.3)",
+          }}
         >
-          View on GitHub →
+          View on GitHub -&gt;
         </a>
       </div>
     );
@@ -105,7 +167,7 @@ function PushReadmeButton({ reportId }: { reportId: string }) {
       <div className="flex gap-2 flex-wrap">
         <input
           type="password"
-          placeholder="ghp_••••••••••••••••••••••"
+          placeholder="ghp_your_token_here"
           value={token}
           onChange={(e) => setToken(e.target.value)}
           className="flex-1 min-w-0 px-3 py-2 rounded-lg text-sm"
@@ -120,7 +182,11 @@ function PushReadmeButton({ reportId }: { reportId: string }) {
           onClick={() => void handlePush()}
           disabled={!token.trim() || status === "loading"}
           className="px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:opacity-80 disabled:opacity-40"
-          style={{ background: "var(--accent-dim)", color: "var(--accent)", border: "1px solid var(--accent-glow)" }}
+          style={{
+            background: "var(--accent-dim)",
+            color: "var(--accent)",
+            border: "1px solid var(--accent-glow)",
+          }}
         >
           {status === "loading" ? "Pushing..." : "Push README"}
         </button>
@@ -153,7 +219,7 @@ export default function ReportPage() {
         setError(err instanceof Error ? err.message : "Failed to load report");
       }
     }
-    loadReport();
+    void loadReport();
   }, [reportId]);
 
   if (error) {
@@ -216,6 +282,7 @@ export default function ReportPage() {
   const highCount = visibilityGaps.filter((g) => g.impact === "high").length;
   const urgentCount = criticalCount + highCount;
   const potentialReach = Math.max(2, Math.min(8, Math.round((100 - scores.overall) / 12)));
+  const topGap = visibilityGaps[0];
 
   const label = scoreLabel(scores.overall);
   const impactMap = [
@@ -263,8 +330,6 @@ Try it: leverageos.vercel.app`;
 
       <div className="flex-1 px-5 py-10">
         <div className="max-w-5xl mx-auto flex flex-col gap-8">
-
-          {/* KPI Banner */}
           <div
             className="rounded-2xl p-5 fade-up"
             style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
@@ -279,7 +344,7 @@ Try it: leverageos.vercel.app`;
               <div
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-help"
                 style={{ background: "rgba(6,214,160,0.08)", border: "1px solid rgba(6,214,160,0.2)" }}
-                title="Median pipeline run is ~90s end-to-end vs ~4h to write a bio, README, repo descriptions, LinkedIn copy, X thread, and resume bullets by hand."
+                title="Median pipeline run is about 90 seconds end-to-end versus roughly 4 hours to write these assets manually."
               >
                 <span className="text-lg font-extrabold" style={{ color: "var(--green)" }}>
                   90s
@@ -294,7 +359,7 @@ Try it: leverageos.vercel.app`;
                   background: urgentCount > 2 ? "rgba(255,149,51,0.08)" : "rgba(251,191,36,0.08)",
                   border: `1px solid ${urgentCount > 2 ? "rgba(255,149,51,0.2)" : "rgba(251,191,36,0.2)"}`,
                 }}
-                title={`${criticalCount} critical + ${highCount} high-impact gaps detected by the Visibility Gap Analysis agent.`}
+                title={`${criticalCount} critical and ${highCount} high-impact gaps detected.`}
               >
                 <span
                   className="text-lg font-extrabold"
@@ -309,7 +374,7 @@ Try it: leverageos.vercel.app`;
               <div
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl cursor-help"
                 style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)" }}
-                title={`Estimate derived from headroom on your overall reputation score (currently ${scores.overall}/100). Applying the Fix Kit closes the gap between your packaging and your underlying technical evidence.`}
+                title={`Estimated from the gap between your current score (${scores.overall}/100) and a stronger public profile.`}
               >
                 <span className="text-lg font-extrabold" style={{ color: "var(--blue)" }}>
                   +{potentialReach}x
@@ -376,38 +441,6 @@ Try it: leverageos.vercel.app`;
             </div>
           </div>
 
-          <div className="fade-up">
-            <SectionHeading>Fix Now Kit</SectionHeading>
-            <p className="text-sm mb-5 -mt-3" style={{ color: "var(--text-dim)" }}>
-              These are the highest-leverage assets to copy, apply, and publish first.
-            </p>
-            <FixKitSection fixKit={fixKit} />
-            <PushReadmeButton reportId={reportId} />
-          </div>
-
-          <div className="fade-up">
-            <SectionHeading>What Changes If You Apply This</SectionHeading>
-            <div className="grid md:grid-cols-3 gap-4">
-              {impactMap.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-2xl p-5"
-                  style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-                >
-                  <p className="text-sm font-bold" style={{ color: "var(--text)" }}>
-                    {item.title}
-                  </p>
-                  <p className="text-sm mt-2" style={{ color: "var(--text-dim)" }}>
-                    {item.detail}
-                  </p>
-                  <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-                    Example fix: {item.evidence}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div
             className="rounded-2xl overflow-hidden fade-up"
             style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
@@ -425,13 +458,13 @@ Try it: leverageos.vercel.app`;
                     className="text-xs font-mono uppercase tracking-widest mb-1"
                     style={{ color: "var(--text-muted)" }}
                   >
-                    Supporting score
+                    Start here
                   </p>
                   <h2
                     className="text-xl font-extrabold"
                     style={{ color: "var(--text)", letterSpacing: "-0.02em" }}
                   >
-                    Recruiter Perception Score
+                    Your score and quickest next move
                   </h2>
                 </div>
                 <div
@@ -447,23 +480,61 @@ Try it: leverageos.vercel.app`;
               </div>
             </div>
 
-            <div className="p-6 flex flex-col md:flex-row gap-8 items-start">
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                {showScore && <ScoreRing score={scores.overall} size={164} />}
+            <div className="p-6 flex flex-col lg:flex-row gap-8 items-start">
+              <div className="flex flex-col items-center gap-2 shrink-0 mx-auto lg:mx-0">
+                {showScore && <ScoreRing score={scores.overall} size={156} />}
                 <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
                   Overall score
                 </p>
               </div>
 
-              <div className="flex-1 flex flex-col gap-3.5 w-full">
-                {SUBSCORES.map((scoreItem, index) => (
-                  <SubScoreBar
-                    key={scoreItem.key}
-                    label={scoreItem.label}
-                    score={scores[scoreItem.key] as number}
-                    delay={showScore ? index * 120 : 9999}
-                  />
-                ))}
+              <div className="flex-1 w-full flex flex-col gap-4">
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+                  >
+                    <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                      Biggest blocker
+                    </p>
+                    <p className="text-sm mt-2 font-semibold" style={{ color: "var(--text)" }}>
+                      {topGap?.title ?? "No urgent blocker detected"}
+                    </p>
+                  </div>
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+                  >
+                    <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                      Best first move
+                    </p>
+                    <p className="text-sm mt-2 font-semibold" style={{ color: "var(--text)" }}>
+                      Open the Fix Now Kit and apply the GitHub items first.
+                    </p>
+                  </div>
+                  <div
+                    className="rounded-xl p-4"
+                    style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+                  >
+                    <p className="text-xs font-mono uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+                      Reach upside
+                    </p>
+                    <p className="text-sm mt-2 font-semibold" style={{ color: "var(--text)" }}>
+                      About +{potentialReach}x if the top fixes are applied.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3.5 w-full">
+                  {SUBSCORES.map((scoreItem, index) => (
+                    <SubScoreBar
+                      key={scoreItem.key}
+                      label={scoreItem.label}
+                      score={scores[scoreItem.key] as number}
+                      delay={showScore ? index * 100 : 9999}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -486,134 +557,171 @@ Try it: leverageos.vercel.app`;
             )}
           </div>
 
-          <div
-            className="rounded-2xl p-6 fade-up"
-            style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-          >
-            <div className="flex items-start gap-4 mb-5">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-                style={{ background: "var(--accent-dim)", color: "var(--accent)" }}
-              >
-                M
-              </div>
-              <div>
-                <p className="text-sm font-bold" style={{ color: "var(--text)" }}>
-                  Marcus Chen
-                </p>
-                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Senior Technical Recruiter - AI simulation
-                </p>
-              </div>
-            </div>
-
-            <div
-              className="rounded-xl p-4"
-              style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
-            >
-              <div
-                className="text-sm leading-relaxed space-y-3"
-                style={{ color: "var(--text-dim)" }}
-              >
-                {recruiterNarrative
-                  .split("\n\n")
-                  .filter(Boolean)
-                  .map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
-                  ))}
-              </div>
-            </div>
+          <div className="fade-up">
+            <SectionHeading>Fix Now Kit</SectionHeading>
+            <p className="text-sm mb-5 -mt-3" style={{ color: "var(--text-dim)" }}>
+              Start here. These are the highest-leverage assets to copy, apply, and publish first.
+            </p>
+            <FixKitSection fixKit={fixKit} />
+            <PushReadmeButton reportId={reportId} />
           </div>
 
-          <div className="fade-up">
-            <SectionHeading>Top Visibility Gaps</SectionHeading>
-            <div className="flex flex-col gap-3">
-              {visibilityGaps.map((gap) => (
-                <div
-                  key={gap.id}
-                  className="rounded-xl overflow-hidden card-hover"
-                  style={{
-                    background: "var(--surface)",
-                    border: "1px solid var(--border)",
-                  }}
-                >
+          <div className="fade-up flex flex-col gap-4">
+            <AccordionSection
+              title="What Changes If You Apply This"
+              subtitle="A short view of the payoff before the deeper details"
+            >
+              <div className="grid md:grid-cols-3 gap-4">
+                {impactMap.map((item) => (
                   <div
-                    className="flex flex-col gap-3 p-5"
-                    style={{
-                      borderLeft: `3px solid ${
-                        gap.impact === "critical"
-                          ? "var(--red)"
-                          : gap.impact === "high"
-                          ? "var(--orange)"
-                          : gap.impact === "medium"
-                          ? "var(--yellow)"
-                          : "var(--green)"
-                      }`,
-                    }}
+                    key={item.title}
+                    className="rounded-2xl p-5"
+                    style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
                   >
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <ImpactBadge impact={gap.impact} />
-                        <span className="text-sm font-bold" style={{ color: "var(--text)" }}>
-                          {gap.title}
+                    <p className="text-sm font-bold" style={{ color: "var(--text)" }}>
+                      {item.title}
+                    </p>
+                    <p className="text-sm mt-2" style={{ color: "var(--text-dim)" }}>
+                      {item.detail}
+                    </p>
+                    <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
+                      Example fix: {item.evidence}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </AccordionSection>
+
+            <AccordionSection
+              title="Recruiter Read"
+              subtitle="The full simulated recruiter perspective"
+            >
+              <div className="flex items-start gap-4 mb-5">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+                  style={{ background: "var(--accent-dim)", color: "var(--accent)" }}
+                >
+                  M
+                </div>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: "var(--text)" }}>
+                    Marcus Chen
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    Senior Technical Recruiter - AI simulation
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}
+              >
+                <div
+                  className="text-sm leading-relaxed space-y-3"
+                  style={{ color: "var(--text-dim)" }}
+                >
+                  {recruiterNarrative
+                    .split("\n\n")
+                    .filter(Boolean)
+                    .map((paragraph, index) => (
+                      <p key={index}>{paragraph}</p>
+                    ))}
+                </div>
+              </div>
+            </AccordionSection>
+
+            <AccordionSection
+              title="Top Visibility Gaps"
+              subtitle="Open this when you want the full detailed analysis"
+            >
+              <div className="flex flex-col gap-3">
+                {visibilityGaps.map((gap) => (
+                  <div
+                    key={gap.id}
+                    className="rounded-xl overflow-hidden card-hover"
+                    style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+                  >
+                    <div
+                      className="flex flex-col gap-3 p-5"
+                      style={{
+                        borderLeft: `3px solid ${
+                          gap.impact === "critical"
+                            ? "var(--red)"
+                            : gap.impact === "high"
+                            ? "var(--orange)"
+                            : gap.impact === "medium"
+                            ? "var(--yellow)"
+                            : "var(--green)"
+                        }`,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <ImpactBadge impact={gap.impact} />
+                          <span className="text-sm font-bold" style={{ color: "var(--text)" }}>
+                            {gap.title}
+                          </span>
+                        </div>
+                        <span
+                          className="text-xs shrink-0 font-mono px-2 py-0.5 rounded"
+                          style={{
+                            background: "var(--surface-2)",
+                            color: "var(--text-muted)",
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          ~{gap.fixTimeMinutes}min fix
                         </span>
                       </div>
-                      <span
-                        className="text-xs shrink-0 font-mono px-2 py-0.5 rounded"
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--text-dim)" }}>
+                        {gap.description}
+                      </p>
+                      <p
+                        className="text-xs px-3 py-2 rounded-lg"
                         style={{
                           background: "var(--surface-2)",
                           color: "var(--text-muted)",
                           border: "1px solid var(--border)",
                         }}
                       >
-                        ~{gap.fixTimeMinutes}min fix
-                      </span>
+                        Recruiter impact: {gap.recruiterImpact}
+                      </p>
+                      {gap.evidence.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {gap.evidence.map((fact, index) => (
+                            <span
+                              key={index}
+                              className="text-xs px-3 py-1 rounded-full"
+                              style={{
+                                background: "var(--surface-2)",
+                                color: "var(--text-muted)",
+                                border: "1px solid var(--border)",
+                              }}
+                            >
+                              {fact}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-dim)" }}>
-                      {gap.description}
-                    </p>
-                    <p
-                      className="text-xs px-3 py-2 rounded-lg"
-                      style={{
-                        background: "var(--surface-2)",
-                        color: "var(--text-muted)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      Recruiter impact: {gap.recruiterImpact}
-                    </p>
-                    {gap.evidence.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {gap.evidence.map((fact, index) => (
-                          <span
-                            key={index}
-                            className="text-xs px-3 py-1 rounded-full"
-                            style={{
-                              background: "var(--surface-2)",
-                              color: "var(--text-muted)",
-                              border: "1px solid var(--border)",
-                            }}
-                          >
-                            {fact}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+            </AccordionSection>
 
-          {opportunities && opportunities.length > 0 && (
-            <div className="fade-up">
-              <SectionHeading>Live Opportunities Matching Your Profile</SectionHeading>
-              <p className="text-sm mb-5 -mt-3" style={{ color: "var(--text-dim)" }}>
-                Found via live web search · matched to your stack and experience level
-              </p>
-              <OpportunitySection opportunities={opportunities} />
-            </div>
-          )}
+            {opportunities && opportunities.length > 0 && (
+              <AccordionSection
+                title="Live Opportunities Matching Your Profile"
+                subtitle="Open this for matching jobs, hackathons, grants, and OSS options"
+              >
+                <p className="text-sm mb-5" style={{ color: "var(--text-dim)" }}>
+                  Found via live web search and matched to your stack and experience level.
+                </p>
+                <OpportunitySection opportunities={opportunities} />
+              </AccordionSection>
+            )}
+          </div>
 
           <div
             className="rounded-2xl overflow-hidden fade-up"
